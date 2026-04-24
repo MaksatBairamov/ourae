@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import * as SQLite from "expo-sqlite";
 
 type CheckInData = {
   mood: string | null;
@@ -7,18 +7,9 @@ type CheckInData = {
   note: string;
 };
 
-let db: any = null;
+const db = SQLite.openDatabaseSync("ourae.db");
 
 export async function initDatabase() {
-  if (Platform.OS === "web") {
-    console.log("SQLite disabled on web");
-    return;
-  }
-
-  const SQLite = await import("expo-sqlite");
-
-  db = SQLite.openDatabaseSync("ourae.db");
-
   db.execSync(`
     CREATE TABLE IF NOT EXISTS checkins (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,11 +23,6 @@ export async function initDatabase() {
 }
 
 export function saveCheckIn(data: CheckInData) {
-  if (Platform.OS === "web" || !db) {
-    console.log("Preview save:", data);
-    return;
-  }
-
   db.runSync(
     `
       INSERT INTO checkins (mood, energy, anxiety, note, created_at)
@@ -47,10 +33,6 @@ export function saveCheckIn(data: CheckInData) {
 }
 
 export function getRecentCheckIns() {
-  if (Platform.OS === "web" || !db) {
-    return [];
-  }
-
   return db.getAllSync(`
     SELECT * FROM checkins
     ORDER BY datetime(created_at) DESC

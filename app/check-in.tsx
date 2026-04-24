@@ -1,14 +1,16 @@
 import { useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
-    Pressable,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    View,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
+import { isSmallScreen, scale, verticalScale } from "../constants/layout";
+import { colors } from "../constants/theme";
 import { saveCheckIn } from "../lib/db";
 
 const moodOptions = [
@@ -22,12 +24,27 @@ const moodOptions = [
   "Happy",
 ];
 
+const moodColors: Record<string, string> = {
+  Calm: colors.cyan,
+  Okay: "#38BDF8",
+  Tired: "#A78BFA",
+  Anxious: colors.danger,
+  Sad: "#60A5FA",
+  Overwhelmed: colors.pink,
+  Motivated: colors.green,
+  Happy: colors.amber,
+};
+
 export default function CheckInScreen() {
   const router = useRouter();
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [energy, setEnergy] = useState(5);
   const [anxiety, setAnxiety] = useState(3);
   const [note, setNote] = useState("");
+
+  const activeMoodColor = selectedMood
+    ? moodColors[selectedMood]
+    : colors.violet;
 
   const isRiskState = useMemo(() => {
     const riskyMood =
@@ -40,144 +57,170 @@ export default function CheckInScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.eyebrow}>Quick check-in</Text>
-        <Text style={styles.title}>How do you feel right now?</Text>
-        <Text style={styles.subtitle}>
-          This takes less than a minute. Just enough to help you notice your
-          current state.
-        </Text>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>Quick check-in</Text>
+          <Text style={styles.title}>How do you feel right now?</Text>
+          <Text style={styles.subtitle}>
+            A short pause to notice your current emotional state.
+          </Text>
+        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mood</Text>
-          <View style={styles.optionsGrid}>
-            {moodOptions.map((mood) => {
-              const isActive = selectedMood === mood;
+        <View style={styles.panel}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Mood</Text>
 
-              return (
-                <Pressable
-                  key={mood}
-                  onPress={() => setSelectedMood(mood)}
-                  style={[
-                    styles.optionButton,
-                    isActive && styles.optionButtonActive,
-                  ]}
-                >
-                  <Text
+            <View style={styles.optionsGrid}>
+              {moodOptions.map((mood) => {
+                const isActive = selectedMood === mood;
+                const moodColor = moodColors[mood];
+
+                return (
+                  <Pressable
+                    key={mood}
+                    onPress={() => setSelectedMood(mood)}
                     style={[
-                      styles.optionText,
-                      isActive && styles.optionTextActive,
+                      styles.optionButton,
+                      isActive && {
+                        backgroundColor: moodColor,
+                        borderColor: moodColor,
+                      },
                     ]}
                   >
-                    {mood}
-                  </Text>
-                </Pressable>
-              );
-            })}
+                    <Text
+                      style={[
+                        styles.optionText,
+                        isActive && styles.optionTextActive,
+                      ]}
+                    >
+                      {mood}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Energy: {energy}/10</Text>
-          <View style={styles.scaleRow}>
-            {Array.from({ length: 10 }, (_, i) => i + 1).map((value) => {
-              const isActive = energy === value;
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Energy: {energy}/10</Text>
+            <View style={styles.scaleRow}>
+              {Array.from({ length: 10 }, (_, i) => i + 1).map((value) => {
+                const isActive = energy === value;
 
-              return (
-                <Pressable
-                  key={value}
-                  onPress={() => setEnergy(value)}
-                  style={[
-                    styles.scaleButton,
-                    isActive && styles.scaleButtonActive,
-                  ]}
-                >
-                  <Text
+                return (
+                  <Pressable
+                    key={value}
+                    onPress={() => setEnergy(value)}
                     style={[
-                      styles.scaleButtonText,
-                      isActive && styles.scaleButtonTextActive,
+                      styles.scaleButton,
+                      isActive && {
+                        backgroundColor: colors.green,
+                        borderColor: colors.green,
+                      },
                     ]}
                   >
-                    {value}
-                  </Text>
-                </Pressable>
-              );
-            })}
+                    <Text
+                      style={[
+                        styles.scaleButtonText,
+                        isActive && styles.scaleButtonTextActive,
+                      ]}
+                    >
+                      {value}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Anxiety: {anxiety}/10</Text>
-          <View style={styles.scaleRow}>
-            {Array.from({ length: 10 }, (_, i) => i + 1).map((value) => {
-              const isActive = anxiety === value;
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Anxiety: {anxiety}/10</Text>
+            <View style={styles.scaleRow}>
+              {Array.from({ length: 10 }, (_, i) => i + 1).map((value) => {
+                const isActive = anxiety === value;
 
-              return (
-                <Pressable
-                  key={value}
-                  onPress={() => setAnxiety(value)}
-                  style={[
-                    styles.scaleButton,
-                    isActive && styles.scaleButtonActive,
-                  ]}
-                >
-                  <Text
+                return (
+                  <Pressable
+                    key={value}
+                    onPress={() => setAnxiety(value)}
                     style={[
-                      styles.scaleButtonText,
-                      isActive && styles.scaleButtonTextActive,
+                      styles.scaleButton,
+                      isActive && {
+                        backgroundColor: colors.danger,
+                        borderColor: colors.danger,
+                      },
                     ]}
                   >
-                    {value}
-                  </Text>
-                </Pressable>
-              );
-            })}
+                    <Text
+                      style={[
+                        styles.scaleButtonText,
+                        isActive && styles.scaleButtonTextActive,
+                      ]}
+                    >
+                      {value}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>What is on your mind?</Text>
-          <TextInput
-            value={note}
-            onChangeText={setNote}
-            placeholder="Write a short note..."
-            placeholderTextColor="#64748B"
-            multiline
-            style={styles.input}
-          />
-        </View>
-
-        {isRiskState ? (
-          <View style={styles.alertCard}>
-            <Text style={styles.alertTitle}>
-              Please slow down for a moment.
-            </Text>
-            <Text style={styles.alertText}>
-              You seem to be having a difficult moment. Ourae can guide you to a
-              calmer screen and show support options next.
-            </Text>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>What is on your mind?</Text>
+            <TextInput
+              value={note}
+              onChangeText={setNote}
+              placeholder="Write a short note..."
+              placeholderTextColor={colors.textMuted}
+              multiline
+              style={[
+                styles.input,
+                selectedMood && { borderColor: activeMoodColor },
+              ]}
+            />
           </View>
-        ) : null}
 
-        <Pressable
-          style={styles.continueButton}
-          onPress={() => {
-            saveCheckIn({
-              mood: selectedMood,
-              energy,
-              anxiety,
-              note,
-            });
+          {isRiskState ? (
+            <View style={styles.alertCard}>
+              <Text style={styles.alertTitle}>
+                Please slow down for a moment.
+              </Text>
+              <Text style={styles.alertText}>
+                This looks like a difficult moment. Ourae can guide you to a
+                calmer screen and show support options next.
+              </Text>
+            </View>
+          ) : null}
 
-            if (isRiskState) {
-              router.push("/panic");
-            } else {
-              router.push("/summary");
-            }
-          }}
-        >
-          <Text style={styles.continueButtonText}>Continue</Text>
-        </Pressable>
+          <Pressable
+            style={[
+              styles.continueButton,
+              selectedMood && {
+                backgroundColor: activeMoodColor,
+                shadowColor: activeMoodColor,
+              },
+            ]}
+            onPress={() => {
+              saveCheckIn({
+                mood: selectedMood,
+                energy,
+                anxiety,
+                note,
+              });
+
+              if (isRiskState) {
+                router.push("/panic" as any);
+              } else {
+                router.push("/summary" as any);
+              }
+            }}
+          >
+            <Text style={styles.continueButtonText}>Continue</Text>
+          </Pressable>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -186,134 +229,150 @@ export default function CheckInScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#0B1020",
+    backgroundColor: colors.bg,
   },
   container: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 40,
-    backgroundColor: "#0B1020",
+    paddingHorizontal: scale(20),
+    paddingTop: verticalScale(28),
+    paddingBottom: verticalScale(42),
+    backgroundColor: colors.bg,
+  },
+  header: {
+    marginBottom: verticalScale(24),
   },
   eyebrow: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#7C3AED",
+    fontSize: scale(12),
+    fontWeight: "800",
+    color: colors.cyan,
     textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 12,
+    letterSpacing: 1.6,
+    marginBottom: verticalScale(12),
   },
   title: {
-    fontSize: 30,
-    fontWeight: "700",
-    color: "#F8FAFC",
-    marginBottom: 10,
+    fontSize: isSmallScreen ? scale(27) : scale(32),
+    lineHeight: isSmallScreen ? verticalScale(34) : verticalScale(39),
+    fontWeight: "900",
+    color: colors.text,
+    marginBottom: verticalScale(10),
   },
   subtitle: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: "#94A3B8",
-    marginBottom: 28,
+    fontSize: scale(15),
+    lineHeight: verticalScale(23),
+    color: colors.textMuted,
+  },
+  panel: {
+    backgroundColor: colors.surface,
+    borderRadius: scale(28),
+    padding: scale(18),
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: colors.violet,
+    shadowOpacity: 0.16,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 6,
   },
   section: {
-    marginBottom: 28,
+    marginBottom: verticalScale(28),
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#E2E8F0",
-    marginBottom: 14,
+    fontSize: scale(17),
+    fontWeight: "800",
+    color: colors.text,
+    marginBottom: verticalScale(14),
   },
   optionsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    gap: scale(10),
   },
   optionButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: verticalScale(11),
+    paddingHorizontal: scale(15),
     borderRadius: 999,
-    backgroundColor: "#121A2E",
+    backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
-    borderColor: "#1E293B",
-  },
-  optionButtonActive: {
-    backgroundColor: "#7C3AED",
-    borderColor: "#7C3AED",
+    borderColor: colors.border,
   },
   optionText: {
-    color: "#CBD5E1",
-    fontSize: 15,
-    fontWeight: "600",
+    color: colors.textSoft,
+    fontSize: scale(14),
+    fontWeight: "700",
   },
   optionTextActive: {
-    color: "#FFFFFF",
+    color: "#05060D",
   },
   scaleRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
+    gap: scale(10),
   },
   scaleButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(13),
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#121A2E",
+    backgroundColor: colors.surfaceElevated,
     borderWidth: 1,
-    borderColor: "#1E293B",
-  },
-  scaleButtonActive: {
-    backgroundColor: "#7C3AED",
-    borderColor: "#7C3AED",
+    borderColor: colors.border,
   },
   scaleButtonText: {
-    color: "#CBD5E1",
-    fontWeight: "700",
+    color: colors.textSoft,
+    fontSize: scale(14),
+    fontWeight: "800",
   },
   scaleButtonTextActive: {
-    color: "#FFFFFF",
+    color: "#05060D",
   },
   input: {
-    minHeight: 120,
-    backgroundColor: "#121A2E",
-    borderRadius: 20,
+    minHeight: verticalScale(122),
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: scale(22),
     borderWidth: 1,
-    borderColor: "#1E293B",
-    padding: 16,
-    color: "#F8FAFC",
-    fontSize: 16,
+    borderColor: colors.border,
+    padding: scale(16),
+    color: colors.text,
+    fontSize: scale(15),
+    lineHeight: verticalScale(22),
     textAlignVertical: "top",
   },
   alertCard: {
-    backgroundColor: "rgba(239, 68, 68, 0.12)",
-    borderRadius: 20,
+    backgroundColor: colors.dangerSoft,
+    borderRadius: scale(22),
     borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.35)",
-    padding: 18,
-    marginBottom: 20,
+    borderColor: "rgba(251, 113, 133, 0.45)",
+    padding: scale(18),
+    marginBottom: verticalScale(20),
   },
   alertTitle: {
-    color: "#FCA5A5",
-    fontSize: 18,
-    fontWeight: "700",
-    marginBottom: 8,
+    color: colors.danger,
+    fontSize: scale(17),
+    fontWeight: "900",
+    marginBottom: verticalScale(8),
   },
   alertText: {
     color: "#FECACA",
-    fontSize: 15,
-    lineHeight: 22,
+    fontSize: scale(14),
+    lineHeight: verticalScale(22),
   },
   continueButton: {
-    backgroundColor: "#7C3AED",
-    borderRadius: 18,
-    paddingVertical: 16,
+    backgroundColor: colors.violet,
+    borderRadius: scale(20),
+    paddingVertical: verticalScale(16),
     alignItems: "center",
-    marginTop: 8,
+    marginTop: verticalScale(4),
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    shadowColor: colors.violet,
+    shadowOpacity: 0.28,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
   },
   continueButtonText: {
     color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: scale(16),
+    fontWeight: "900",
   },
 });
