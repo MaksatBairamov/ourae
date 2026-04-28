@@ -1,48 +1,111 @@
+import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
-import { scale, verticalScale } from "../constants/layout";
+import { useEffect, useRef } from "react";
+import {
+  Animated,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { isSmallScreen, scale, verticalScale } from "../constants/layout";
 import { colors } from "../constants/theme";
 
 export default function HomeScreen() {
   const router = useRouter();
 
+  const auraScale = useRef(new Animated.Value(1)).current;
+  const fadeIn = useRef(new Animated.Value(0)).current;
+  const buttonScale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeIn, {
+      toValue: 1,
+      duration: 650,
+      useNativeDriver: true,
+    }).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(auraScale, {
+          toValue: 1.06,
+          duration: 2600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(auraScale, {
+          toValue: 1,
+          duration: 2600,
+          useNativeDriver: true,
+        }),
+      ]),
+    ).start();
+  }, [auraScale, fadeIn]);
+
+  const handleStart = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    Animated.sequence([
+      Animated.timing(buttonScale, {
+        toValue: 0.97,
+        duration: 90,
+        useNativeDriver: true,
+      }),
+      Animated.timing(buttonScale, {
+        toValue: 1,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      router.push("/check-in" as any);
+    });
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.hero}>
-          <Text style={styles.kicker}>Welcome back</Text>
+    <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+      <Animated.View style={[styles.container, { opacity: fadeIn }]}>
+        <View style={styles.orbWarm} />
+        <View style={styles.orbLavender} />
+        <View style={styles.orbMint} />
+        <View style={styles.orbPeach} />
+
+        <View style={styles.brandBlock}>
           <Text style={styles.brand}>Ourae</Text>
-          <Text style={styles.subtitle}>
-            A private space to notice, write down, and understand what you feel.
-          </Text>
         </View>
 
-        <View style={styles.card}>
-          <View style={styles.cardAccent} />
-
-          <Text style={styles.cardLabel}>Daily check-in</Text>
-          <Text style={styles.cardTitle}>How are you feeling today?</Text>
-
-          <Text style={styles.cardText}>
-            Take a short emotional check-in and let Ourae help you slow down,
-            reflect, and recognize your patterns over time.
-          </Text>
-
-          <Pressable
-            style={styles.primaryButton}
-            onPress={() => router.push("/check-in" as any)}
+        <View style={styles.centerStage}>
+          <Animated.View
+            style={[styles.auraOuter, { transform: [{ scale: auraScale }] }]}
           >
+            <View style={styles.auraMiddle}>
+              <View style={styles.auraInner} />
+            </View>
+          </Animated.View>
+
+          <Text style={styles.prompt}>Check in with yourself</Text>
+        </View>
+
+        <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+          <Pressable style={styles.primaryButton} onPress={handleStart}>
             <Text style={styles.primaryButtonText}>Start check-in</Text>
           </Pressable>
-        </View>
-
-        <View style={styles.footerBlock}>
-          <Text style={styles.footerLabel}>Coming soon</Text>
-          <Text style={styles.footerText}>
-            Journal · panic support · local insights · camera-based mood scan
-          </Text>
-        </View>
-      </View>
+          <Pressable
+            style={{ marginTop: verticalScale(14), alignItems: "center" }}
+            onPress={() => router.push("/history" as any)}
+          >
+            <Text
+              style={{
+                color: colors.textSoft,
+                fontSize: scale(14),
+                fontWeight: "700",
+              }}
+            >
+              View patterns
+            </Text>
+          </Pressable>
+        </Animated.View>
+      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -55,108 +118,126 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: scale(24),
-    paddingVertical: verticalScale(34),
-    justifyContent: "space-between",
+    paddingTop: verticalScale(28),
+    paddingBottom: verticalScale(30),
     backgroundColor: colors.bg,
+    overflow: "hidden",
+    justifyContent: "space-between",
   },
-  hero: {
-    marginTop: verticalScale(20),
-  },
-  kicker: {
-    color: colors.cyan,
-    fontSize: scale(12),
-    fontWeight: "800",
-    letterSpacing: 2,
-    textTransform: "uppercase",
-    marginBottom: verticalScale(12),
+  brandBlock: {
+    zIndex: 2,
   },
   brand: {
-    fontSize: scale(44),
-    fontWeight: "900",
     color: colors.text,
-    letterSpacing: 0.5,
+    fontSize: isSmallScreen ? scale(46) : scale(52),
+    lineHeight: isSmallScreen ? verticalScale(52) : verticalScale(58),
+    fontWeight: "900",
+    letterSpacing: -1.4,
   },
-  subtitle: {
-    marginTop: verticalScale(12),
-    fontSize: scale(16),
-    lineHeight: verticalScale(24),
-    color: colors.textMuted,
-    maxWidth: scale(320),
+  centerStage: {
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2,
+    marginTop: verticalScale(-12),
   },
-  card: {
-    position: "relative",
-    overflow: "hidden",
-    backgroundColor: colors.surface,
-    borderRadius: scale(28),
-    padding: scale(24),
+  auraOuter: {
+    width: isSmallScreen ? scale(238) : scale(270),
+    height: isSmallScreen ? scale(238) : scale(270),
+    borderRadius: isSmallScreen ? scale(119) : scale(135),
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(216,204,255,0.46)",
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: "rgba(139,124,255,0.12)",
+  },
+  auraMiddle: {
+    width: isSmallScreen ? scale(172) : scale(196),
+    height: isSmallScreen ? scale(172) : scale(196),
+    borderRadius: isSmallScreen ? scale(86) : scale(98),
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(189,239,215,0.42)",
+    borderWidth: 1,
+    borderColor: "rgba(101,207,168,0.16)",
+  },
+  auraInner: {
+    width: isSmallScreen ? scale(82) : scale(94),
+    height: isSmallScreen ? scale(82) : scale(94),
+    borderRadius: isSmallScreen ? scale(41) : scale(47),
+    backgroundColor: colors.violet,
+    opacity: 0.86,
     shadowColor: colors.violet,
-    shadowOpacity: 0.22,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 8,
+    shadowOpacity: 0.28,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
   },
-  cardAccent: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-    backgroundColor: colors.violetHot,
-  },
-  cardLabel: {
-    color: colors.violetHot,
-    fontSize: scale(12),
-    fontWeight: "800",
-    letterSpacing: 1.5,
-    textTransform: "uppercase",
-    marginBottom: verticalScale(14),
-  },
-  cardTitle: {
-    fontSize: scale(24),
-    fontWeight: "900",
+  prompt: {
+    marginTop: verticalScale(32),
     color: colors.text,
-    marginBottom: verticalScale(12),
-  },
-  cardText: {
-    fontSize: scale(15),
-    lineHeight: verticalScale(23),
-    color: colors.textSoft,
-    marginBottom: verticalScale(24),
+    fontSize: isSmallScreen ? scale(25) : scale(29),
+    lineHeight: isSmallScreen ? verticalScale(31) : verticalScale(35),
+    fontWeight: "900",
+    textAlign: "center",
+    letterSpacing: -0.8,
   },
   primaryButton: {
+    zIndex: 2,
     backgroundColor: colors.violet,
-    borderRadius: scale(18),
-    paddingVertical: verticalScale(16),
+    borderRadius: scale(28),
+    paddingVertical: verticalScale(18),
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: "rgba(255,255,255,0.62)",
     shadowColor: colors.violet,
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: Platform.OS === "ios" ? 0.22 : 0.28,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
     elevation: 8,
   },
   primaryButtonText: {
     color: "#FFFFFF",
     fontSize: scale(16),
-    fontWeight: "800",
+    fontWeight: "900",
   },
-  footerBlock: {
-    marginBottom: verticalScale(10),
+  orbWarm: {
+    position: "absolute",
+    top: verticalScale(20),
+    left: scale(-80),
+    width: scale(285),
+    height: scale(285),
+    borderRadius: scale(142.5),
+    backgroundColor: colors.warm,
+    opacity: 0.34,
   },
-  footerLabel: {
-    fontSize: scale(12),
-    fontWeight: "800",
-    color: colors.cyan,
-    marginBottom: verticalScale(8),
-    textTransform: "uppercase",
-    letterSpacing: 1.5,
+  orbLavender: {
+    position: "absolute",
+    top: verticalScale(82),
+    right: scale(-92),
+    width: scale(250),
+    height: scale(250),
+    borderRadius: scale(125),
+    backgroundColor: colors.lavender,
+    opacity: 0.52,
   },
-  footerText: {
-    fontSize: scale(14),
-    lineHeight: verticalScale(22),
-    color: colors.textMuted,
+  orbMint: {
+    position: "absolute",
+    bottom: verticalScale(124),
+    left: scale(-94),
+    width: scale(230),
+    height: scale(230),
+    borderRadius: scale(115),
+    backgroundColor: colors.mint,
+    opacity: 0.38,
+  },
+  orbPeach: {
+    position: "absolute",
+    bottom: verticalScale(-72),
+    right: scale(-46),
+    width: scale(196),
+    height: scale(196),
+    borderRadius: scale(98),
+    backgroundColor: colors.peach,
+    opacity: 0.42,
   },
 });

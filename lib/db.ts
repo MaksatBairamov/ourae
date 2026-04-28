@@ -1,13 +1,19 @@
 import { Platform } from "react-native";
 
-type CheckInData = {
+export type CheckInData = {
   mood: string | null;
   energy: number;
   anxiety: number;
   note: string;
 };
 
+export type StoredCheckIn = CheckInData & {
+  id: number;
+  created_at: string;
+};
+
 let db: any = null;
+const previewCheckIns: StoredCheckIn[] = [];
 
 export async function initDatabase() {
   if (Platform.OS === "web") {
@@ -33,7 +39,11 @@ export async function initDatabase() {
 
 export function saveCheckIn(data: CheckInData) {
   if (Platform.OS === "web" || !db) {
-    console.log("Preview save:", data);
+    previewCheckIns.unshift({
+      ...data,
+      id: Date.now(),
+      created_at: new Date().toISOString(),
+    });
     return;
   }
 
@@ -46,14 +56,15 @@ export function saveCheckIn(data: CheckInData) {
   );
 }
 
-export function getRecentCheckIns() {
+export function getRecentCheckIns(): StoredCheckIn[] {
   if (Platform.OS === "web" || !db) {
-    return [];
+    return previewCheckIns;
   }
 
   return db.getAllSync(`
-    SELECT * FROM checkins
+    SELECT id, mood, energy, anxiety, note, created_at
+    FROM checkins
     ORDER BY datetime(created_at) DESC
-    LIMIT 20
-  `);
+    LIMIT 50
+  `) as StoredCheckIn[];
 }
