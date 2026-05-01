@@ -1,111 +1,306 @@
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
-  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { isSmallScreen, scale, verticalScale } from "../constants/layout";
-import { colors } from "../constants/theme";
+
+import { scale, verticalScale } from "../constants/layout";
+import { colors, moodColors } from "../constants/theme";
+import { getRecentCheckIns, type StoredCheckIn } from "../lib/db";
+
+function getMoodColor(mood: string) {
+  return moodColors[mood as keyof typeof moodColors] || colors.primary;
+}
+
+function getTrendLabel(avgEnergy?: number, avgAnxiety?: number) {
+  if (!avgEnergy || !avgAnxiety) return "No pattern yet";
+  if (avgAnxiety >= 8 && avgEnergy <= 3) return "High tension";
+  if (avgAnxiety >= 7) return "Activated";
+  if (avgEnergy <= 3) return "Low energy";
+  if (avgEnergy >= 7 && avgAnxiety <= 4) return "Steady";
+  return "Mixed";
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return "recently";
+
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
 
 export default function HomeScreen() {
   const router = useRouter();
+  const [checkIns, setCheckIns] = useState<StoredCheckIn[]>([]);
 
-  const auraScale = useRef(new Animated.Value(1)).current;
-  const fadeIn = useRef(new Animated.Value(0)).current;
-  const buttonScale = useRef(new Animated.Value(1)).current;
+  const orbScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    Animated.timing(fadeIn, {
-      toValue: 1,
-      duration: 650,
-      useNativeDriver: true,
-    }).start();
+    let isMounted = true;
 
-    Animated.loop(
+    async function load() {
+      const data = await getRecentCheckIns();
+
+      if (isMounted) {
+        setCheckIns(data);
+      }
+    }
+
+    load();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const animation = Animated.loop(
       Animated.sequence([
-        Animated.timing(auraScale, {
-          toValue: 1.06,
-          duration: 2600,
+        Animated.timing(orbScale, {
+          toValue: 1.12,
+          duration: 1800,
           useNativeDriver: true,
         }),
-        Animated.timing(auraScale, {
+        Animated.timing(orbScale, {
           toValue: 1,
-          duration: 2600,
+          duration: 1800,
           useNativeDriver: true,
         }),
       ]),
-    ).start();
-  }, [auraScale, fadeIn]);
+    );
 
-  const handleStart = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    animation.start();
 
-    Animated.sequence([
-      Animated.timing(buttonScale, {
-        toValue: 0.97,
-        duration: 90,
-        useNativeDriver: true,
-      }),
-      Animated.timing(buttonScale, {
-        toValue: 1,
-        duration: 120,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      router.push("/check-in" as any);
+    return () => animation.stop();
+  }, [orbScale]);
+
+  const stats = useMemo(() => {
+    if (checkIns.length === 0) return null;
+
+    const total = checkIns.length;
+
+    const avgEnergy = Math.round(
+      checkIns.reduce((sum, item) => sum + item.energy, 0) / total,
+    );
+
+    const avgAnxiety = Math.round(
+      checkIns.reduce((sum, item) => sum + item.anxiety, 0) / total,
+    );
+
+    const moodCount: Record<string, number> = {};
+
+    checkIns.forEach((item) => {
+      const mood = item.mood || "Unknown";
+      moodCount[mood] = (moodCount[mood] || 0) + 1;
     });
-  };
+
+    const mostFrequentMood =
+      Object.entries(moodCount).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+      "Unknown";
+
+    return {
+      total,
+      avgEnergy,
+      avgAnxiety,
+      mostFrequentMood,
+      trend: getTrendLabel(avgEnergy, avgAnxiety),
+    };
+  }, [checkIns]);
+
+  const lastMood = checkIns[0]?.mood || "No data yet";
+  const moodColor = getMoodColor(lastMood);
+  const recentCheckIns = checkIns.slice(0, 5);
+
+  const handleCheckIn = useCallback(async () => {
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {
+      // Haptics may not be available.
+    }
+
+    router.push("/check-in");
+  }, [router]);
+
+  const handleOpenHistory = useCallback(async () => {
+    try {
+      await Haptics.selectionAsync();
+    } catch {
+      // Haptics may not be available.
+    }
+
+    router.push("/history");
+  }, [router]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
-      <Animated.View style={[styles.container, { opacity: fadeIn }]}>
-        <View style={styles.orbWarm} />
-        <View style={styles.orbLavender} />
-        <View style={styles.orbMint} />
-        <View style={styles.orbPeach} />
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
+        <View pointerEvents="none" style={styles.bgGlowOne} />
+        <View
+          pointerEvents="none"
+          style={[styles.bgGlowTwo, { backgroundColor: moodColor }]}
+        />
 
-        <View style={styles.brandBlock}>
-          <Text style={styles.brand}>Ourae</Text>
-        </View>
-
-        <View style={styles.centerStage}>
-          <Animated.View
-            style={[styles.auraOuter, { transform: [{ scale: auraScale }] }]}
-          >
-            <View style={styles.auraMiddle}>
-              <View style={styles.auraInner} />
-            </View>
-          </Animated.View>
-
-          <Text style={styles.prompt}>Check in with yourself</Text>
-        </View>
-
-        <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
-          <Pressable style={styles.primaryButton} onPress={handleStart}>
-            <Text style={styles.primaryButtonText}>Start check-in</Text>
-          </Pressable>
-          <Pressable
-            style={{ marginTop: verticalScale(14), alignItems: "center" }}
-            onPress={() => router.push("/history" as any)}
-          >
-            <Text
-              style={{
-                color: colors.textSoft,
-                fontSize: scale(14),
-                fontWeight: "700",
-              }}
+        <View style={styles.header}>
+          <View style={styles.brandRow}>
+            <Animated.View
+              style={[
+                styles.logoMark,
+                {
+                  transform: [{ scale: orbScale }],
+                },
+              ]}
             >
-              View patterns
+              <View style={[styles.logoCore, { backgroundColor: moodColor }]} />
+            </Animated.View>
+
+            <View>
+              <Text style={styles.title}>Ourae</Text>
+              <Text style={styles.subtitle}>Emotional dashboard</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.hero}>
+          <Text style={styles.heroLabel}>Current trend</Text>
+
+          <Text style={[styles.heroValue, { color: moodColor }]}>
+            {stats ? stats.trend : "No data yet"}
+          </Text>
+
+          <View style={styles.heroMetrics}>
+            <Text style={styles.heroMetricText}>
+              Energy {stats?.avgEnergy ?? "-"}/10
             </Text>
+
+            <View style={styles.softDivider} />
+
+            <Text style={styles.heroMetricText}>
+              Anxiety {stats?.avgAnxiety ?? "-"}/10
+            </Text>
+
+            <View style={styles.softDivider} />
+
+            <Text style={styles.heroMetricText}>{stats?.total ?? 0} logs</Text>
+          </View>
+        </View>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Start new check-in"
+          style={({ pressed }) => [
+            styles.primaryButton,
+            { backgroundColor: moodColor },
+            pressed && styles.buttonPressed,
+          ]}
+          onPress={handleCheckIn}
+        >
+          <Text style={styles.primaryButtonText}>New check-in</Text>
+        </Pressable>
+
+        <View style={styles.shortcuts}>
+          <Pressable
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.shortcutItem,
+              pressed && styles.buttonPressed,
+            ]}
+            onPress={handleOpenHistory}
+          >
+            <Text style={styles.shortcutTitle}>Patterns</Text>
+            <Text style={styles.shortcutText}>Full history</Text>
           </Pressable>
-        </Animated.View>
-      </Animated.View>
+
+          <View style={styles.shortcutDivider} />
+
+          <Pressable
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.shortcutItem,
+              pressed && styles.buttonPressed,
+            ]}
+            onPress={handleCheckIn}
+          >
+            <Text style={styles.shortcutTitle}>Reset</Text>
+            <Text style={styles.shortcutText}>2 min check</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.historyHeader}>
+          <Text style={styles.sectionTitle}>Recent check-ins</Text>
+
+          {checkIns.length > 0 ? (
+            <Pressable onPress={handleOpenHistory}>
+              <Text style={styles.viewAllText}>View all</Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        {recentCheckIns.length === 0 ? (
+          <View style={styles.emptyBlock}>
+            <Text style={styles.emptyTitle}>No check-ins yet</Text>
+            <Text style={styles.emptyText}>
+              Start with one short check-in. Patterns can wait, apparently.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.historyList}>
+            {recentCheckIns.map((item) => {
+              const mood = item.mood || "Unknown";
+              const color = getMoodColor(mood);
+
+              return (
+                <View key={item.id} style={styles.historyItem}>
+                  <View style={[styles.dot, { backgroundColor: color }]} />
+
+                  <View style={styles.historyContent}>
+                    <View style={styles.historyTopRow}>
+                      <Text style={[styles.historyMood, { color }]}>
+                        {mood}
+                      </Text>
+
+                      <Text style={styles.historyDate}>
+                        {formatDate(item.created_at)}
+                      </Text>
+                    </View>
+
+                    <Text style={styles.historyMeta}>
+                      Energy {item.energy}/10 · Anxiety {item.anxiety}/10
+                    </Text>
+
+                    {item.note.trim().length > 0 ? (
+                      <Text style={styles.historyNote} numberOfLines={1}>
+                        “{item.note.trim()}”
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+              );
+            })}
+            <View style={styles.footer}>
+              <Pressable onPress={() => router.push("/legal/terms")}>
+                <Text style={styles.footerLink}>Terms</Text>
+              </Pressable>
+
+              <Pressable onPress={() => router.push("/legal/privacy")}>
+                <Text style={styles.footerLink}>Privacy</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -116,128 +311,246 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
   },
   container: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: scale(24),
     paddingTop: verticalScale(28),
-    paddingBottom: verticalScale(30),
+    paddingBottom: verticalScale(34),
     backgroundColor: colors.bg,
-    overflow: "hidden",
-    justifyContent: "space-between",
   },
-  brandBlock: {
-    zIndex: 2,
-  },
-  brand: {
-    color: colors.text,
-    fontSize: isSmallScreen ? scale(46) : scale(52),
-    lineHeight: isSmallScreen ? verticalScale(52) : verticalScale(58),
-    fontWeight: "900",
-    letterSpacing: -1.4,
-  },
-  centerStage: {
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 2,
-    marginTop: verticalScale(-12),
-  },
-  auraOuter: {
-    width: isSmallScreen ? scale(238) : scale(270),
-    height: isSmallScreen ? scale(238) : scale(270),
-    borderRadius: isSmallScreen ? scale(119) : scale(135),
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(216,204,255,0.46)",
-    borderWidth: 1,
-    borderColor: "rgba(139,124,255,0.12)",
-  },
-  auraMiddle: {
-    width: isSmallScreen ? scale(172) : scale(196),
-    height: isSmallScreen ? scale(172) : scale(196),
-    borderRadius: isSmallScreen ? scale(86) : scale(98),
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(189,239,215,0.42)",
-    borderWidth: 1,
-    borderColor: "rgba(101,207,168,0.16)",
-  },
-  auraInner: {
-    width: isSmallScreen ? scale(82) : scale(94),
-    height: isSmallScreen ? scale(82) : scale(94),
-    borderRadius: isSmallScreen ? scale(41) : scale(47),
-    backgroundColor: colors.violet,
-    opacity: 0.86,
-    shadowColor: colors.violet,
-    shadowOpacity: 0.28,
-    shadowRadius: 26,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 10,
-  },
-  prompt: {
-    marginTop: verticalScale(32),
-    color: colors.text,
-    fontSize: isSmallScreen ? scale(25) : scale(29),
-    lineHeight: isSmallScreen ? verticalScale(31) : verticalScale(35),
-    fontWeight: "900",
-    textAlign: "center",
-    letterSpacing: -0.8,
-  },
-  primaryButton: {
-    zIndex: 2,
-    backgroundColor: colors.violet,
-    borderRadius: scale(28),
-    paddingVertical: verticalScale(18),
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.62)",
-    shadowColor: colors.violet,
-    shadowOpacity: Platform.OS === "ios" ? 0.22 : 0.28,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 8,
-  },
-  primaryButtonText: {
-    color: "#FFFFFF",
-    fontSize: scale(16),
-    fontWeight: "900",
-  },
-  orbWarm: {
+  bgGlowOne: {
     position: "absolute",
-    top: verticalScale(20),
-    left: scale(-80),
-    width: scale(285),
-    height: scale(285),
-    borderRadius: scale(142.5),
+    top: verticalScale(42),
+    left: scale(-100),
+    width: scale(240),
+    height: scale(240),
+    borderRadius: scale(120),
     backgroundColor: colors.warm,
-    opacity: 0.34,
+    opacity: 0.16,
   },
-  orbLavender: {
+  bgGlowTwo: {
     position: "absolute",
-    top: verticalScale(82),
-    right: scale(-92),
+    top: verticalScale(110),
+    right: scale(-110),
     width: scale(250),
     height: scale(250),
     borderRadius: scale(125),
-    backgroundColor: colors.lavender,
-    opacity: 0.52,
+    opacity: 0.11,
   },
-  orbMint: {
-    position: "absolute",
-    bottom: verticalScale(124),
-    left: scale(-94),
-    width: scale(230),
-    height: scale(230),
-    borderRadius: scale(115),
-    backgroundColor: colors.mint,
-    opacity: 0.38,
+
+  header: {
+    marginBottom: verticalScale(34),
   },
-  orbPeach: {
-    position: "absolute",
-    bottom: verticalScale(-72),
-    right: scale(-46),
-    width: scale(196),
-    height: scale(196),
-    borderRadius: scale(98),
-    backgroundColor: colors.peach,
-    opacity: 0.42,
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  logoMark: {
+    width: scale(36),
+    height: scale(36),
+    borderRadius: scale(18),
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: scale(12),
+    backgroundColor: "rgba(255,255,255,0.36)",
+  },
+  logoCore: {
+    width: scale(17),
+    height: scale(17),
+    borderRadius: scale(8.5),
+  },
+  title: {
+    color: colors.text,
+    fontSize: scale(35),
+    lineHeight: verticalScale(38),
+    fontWeight: "900",
+    letterSpacing: -1.2,
+  },
+  subtitle: {
+    marginTop: verticalScale(3),
+    color: colors.textMuted,
+    fontSize: scale(13),
+    fontWeight: "600",
+  },
+
+  hero: {
+    marginBottom: verticalScale(24),
+  },
+  heroLabel: {
+    marginBottom: verticalScale(8),
+    color: colors.textMuted,
+    fontSize: scale(12),
+    fontWeight: "800",
+    letterSpacing: 1.1,
+    textTransform: "uppercase",
+  },
+  heroValue: {
+    marginBottom: verticalScale(18),
+    fontSize: scale(46),
+    lineHeight: verticalScale(52),
+    fontWeight: "900",
+    letterSpacing: -1.4,
+  },
+  heroMetrics: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: scale(8),
+  },
+  heroMetricText: {
+    color: colors.textSoft,
+    fontSize: scale(13),
+    fontWeight: "800",
+  },
+  softDivider: {
+    width: scale(4),
+    height: scale(4),
+    borderRadius: scale(2),
+    backgroundColor: colors.textFaint,
+    opacity: 0.45,
+  },
+
+  primaryButton: {
+    alignItems: "center",
+    marginBottom: verticalScale(26),
+    paddingVertical: verticalScale(18),
+    borderRadius: scale(26),
+    shadowColor: colors.violet,
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 7,
+  },
+  primaryButtonText: {
+    color: "#FFFFFF",
+    fontSize: scale(15),
+    fontWeight: "900",
+  },
+  buttonPressed: {
+    opacity: 0.76,
+  },
+
+  shortcuts: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: verticalScale(30),
+    paddingVertical: verticalScale(4),
+  },
+  shortcutItem: {
+    flex: 1,
+    paddingVertical: verticalScale(8),
+  },
+  shortcutTitle: {
+    color: colors.text,
+    fontSize: scale(17),
+    fontWeight: "900",
+    marginBottom: verticalScale(3),
+  },
+  shortcutText: {
+    color: colors.textMuted,
+    fontSize: scale(12),
+    fontWeight: "700",
+  },
+  shortcutDivider: {
+    width: 1,
+    height: verticalScale(34),
+    marginHorizontal: scale(18),
+    backgroundColor: colors.borderStrong,
+    opacity: 0.7,
+  },
+
+  historyHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: verticalScale(14),
+  },
+  sectionTitle: {
+    color: colors.text,
+    fontSize: scale(22),
+    fontWeight: "900",
+    letterSpacing: -0.5,
+  },
+  viewAllText: {
+    color: colors.textMuted,
+    fontSize: scale(13),
+    fontWeight: "900",
+  },
+
+  emptyBlock: {
+    paddingTop: verticalScale(4),
+  },
+  emptyTitle: {
+    marginBottom: verticalScale(6),
+    color: colors.text,
+    fontSize: scale(18),
+    fontWeight: "900",
+  },
+  emptyText: {
+    maxWidth: scale(270),
+    color: colors.textMuted,
+    fontSize: scale(13),
+    lineHeight: verticalScale(19),
+    fontWeight: "600",
+  },
+
+  historyList: {
+    gap: verticalScale(16),
+  },
+  historyItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: scale(12),
+  },
+  dot: {
+    width: scale(9),
+    height: scale(9),
+    borderRadius: scale(4.5),
+    marginTop: verticalScale(6),
+  },
+  historyContent: {
+    flex: 1,
+    paddingBottom: verticalScale(14),
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  historyTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: scale(10),
+  },
+  historyMood: {
+    flex: 1,
+    fontSize: scale(15),
+    fontWeight: "900",
+  },
+  historyDate: {
+    color: colors.textMuted,
+    fontSize: scale(11),
+    fontWeight: "700",
+  },
+  historyMeta: {
+    marginTop: verticalScale(3),
+    color: colors.textMuted,
+    fontSize: scale(12),
+    fontWeight: "700",
+  },
+  historyNote: {
+    marginTop: verticalScale(5),
+    color: colors.textSoft,
+    fontSize: scale(12),
+    lineHeight: verticalScale(17),
+    fontWeight: "600",
+  },
+  footer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: scale(20),
+    marginTop: verticalScale(40),
+  },
+
+  footerLink: {
+    color: colors.textFaint,
+    fontSize: scale(12),
+    fontWeight: "700",
   },
 });

@@ -1,45 +1,63 @@
-import { PropsWithChildren, useState } from 'react';
-import { StyleSheet, TouchableOpacity } from 'react-native';
+import { PropsWithChildren, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { colors } from "@/constants/theme";
 
-export function Collapsible({ children, title }: PropsWithChildren & { title: string }) {
+export function Collapsible({
+  children,
+  title,
+}: PropsWithChildren<{ title: string }>) {
   const [isOpen, setIsOpen] = useState(false);
-  const theme = useColorScheme() ?? 'light';
 
   return (
-    <ThemedView>
-      <TouchableOpacity
-        style={styles.heading}
+    <View style={styles.container}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: isOpen }}
+        style={({ pressed }) => [
+          styles.heading,
+          pressed && styles.headingPressed,
+        ]}
         onPress={() => setIsOpen((value) => !value)}
-        activeOpacity={0.8}>
+      >
         <IconSymbol
           name="chevron.right"
           size={18}
-          weight="medium"
-          color={theme === 'light' ? Colors.light.icon : Colors.dark.icon}
-          style={{ transform: [{ rotate: isOpen ? '90deg' : '0deg' }] }}
+          color={colors.textMuted}
+          style={{
+            transform: [{ rotate: isOpen ? "90deg" : "0deg" }],
+          }}
         />
 
-        <ThemedText type="defaultSemiBold">{title}</ThemedText>
-      </TouchableOpacity>
-      {isOpen && <ThemedView style={styles.content}>{children}</ThemedView>}
-    </ThemedView>
+        <Text style={styles.title}>{title}</Text>
+      </Pressable>
+
+      {isOpen ? <View style={styles.content}>{children}</View> : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    paddingVertical: 10,
+  },
   heading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  headingPressed: {
+    opacity: 0.7,
+  },
+  title: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "800",
   },
   content: {
-    marginTop: 6,
-    marginLeft: 24,
+    marginTop: 10,
+    marginLeft: 26,
   },
 });

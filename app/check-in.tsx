@@ -1,5 +1,6 @@
+import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -9,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
 import { isSmallScreen, scale, verticalScale } from "../constants/layout";
 import { colors, moodColors, shadows } from "../constants/theme";
 import { saveCheckIn } from "../lib/db";
@@ -37,6 +39,8 @@ const crisisKeywords = [
   "self-harm",
   "want to disappear",
   "do not want to live",
+  "i don't want to live",
+  "i dont want to live",
 ];
 
 const moodHints: Record<Mood, string> = {
@@ -69,13 +73,16 @@ function ScaleSelector({
       </View>
 
       <View style={styles.scaleTrack}>
-        {Array.from({ length: 10 }, (_, i) => i + 1).map((item) => {
+        {Array.from({ length: 10 }, (_, index) => {
+          const item = index + 1;
           const isActive = item <= value;
           const isSelected = item === value;
 
           return (
             <Pressable
               key={item}
+              accessibilityRole="button"
+              accessibilityLabel={`${label} ${item} out of 10`}
               onPress={() => onChange(item)}
               style={styles.scaleTouch}
             >
@@ -101,17 +108,20 @@ function ScaleSelector({
 
 export default function CheckInScreen() {
   const router = useRouter();
+
   const [selectedMood, setSelectedMood] = useState<Mood | null>(null);
   const [energy, setEnergy] = useState(5);
   const [anxiety, setAnxiety] = useState(3);
   const [note, setNote] = useState("");
   const [showValidation, setShowValidation] = useState(false);
-  const trimmedNote = note.trim();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const trimmedNote = note.trim();
   const normalizedNote = trimmedNote.toLowerCase();
 
-  const hasCrisisText = crisisKeywords.some((keyword) =>
-    normalizedNote.includes(keyword),
+  const hasCrisisText = useMemo(
+    () => crisisKeywords.some((keyword) => normalizedNote.includes(keyword)),
+    [normalizedNote],
   );
 
   const activeMoodColor = selectedMood
@@ -127,37 +137,79 @@ export default function CheckInScreen() {
     return riskyMood && anxiety >= 8 && energy <= 3;
   }, [selectedMood, anxiety, energy]);
 
-  const canContinue = Boolean(selectedMood);
+  const shouldGoToSupport = isRiskState || hasCrisisText;
+  const canContinue = Boolean(selectedMood) && !isSubmitting;
 
-  const handleContinue = () => {
-    if (!canContinue) {
+  const handleSelectMood = useCallback(async (mood: Mood) => {
+    setSelectedMood(mood);
+    setShowValidation(false);
+
+    try {
+      await Haptics.selectionAsync();
+    } catch {
+      // Haptics may not be available on every platform.
+    }
+  }, []);
+
+  const handleContinue = useCallback(async () => {
+    if (!selectedMood) {
       setShowValidation(true);
+
+      try {
+        await Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Warning,
+        );
+      } catch {
+        // Haptics may not be available on every platform.
+      }
+
       return;
     }
 
-    const checkInPayload = {
-      mood: selectedMood,
-      energy,
-      anxiety,
-      note: trimmedNote,
-    };
+    if (isSubmitting) return;
 
-    saveCheckIn(checkInPayload);
+    setIsSubmitting(true);
 
-    const routeParams = {
-      mood: selectedMood ?? "",
-      energy: String(energy),
-      anxiety: String(anxiety),
-      note: trimmedNote,
-    };
+    try {
+      const checkInPayload = {
+        mood: selectedMood,
+        energy,
+        anxiety,
+        note: trimmedNote,
+      };
 
-    const shouldGoToSupport = isRiskState || hasCrisisText;
+      await saveCheckIn(checkInPayload);
 
-    router.push({
-      pathname: shouldGoToSupport ? ("/panic" as any) : ("/summary" as any),
-      params: routeParams,
-    });
-  };
+      try {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      } catch {
+        // Haptics may not be available on every platform.
+      }
+
+      router.push({
+        pathname: shouldGoToSupport ? "/panic" : "/summary",
+        params: {
+          mood: selectedMood,
+          energy: String(energy),
+          anxiety: String(anxiety),
+          note: trimmedNote,
+        },
+      });
+    } catch (error) {
+      console.error("Failed to save check-in:", error);
+      setShowValidation(true);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [
+    anxiety,
+    energy,
+    isSubmitting,
+    router,
+    selectedMood,
+    shouldGoToSupport,
+    trimmedNote,
+  ]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
@@ -193,47 +245,59 @@ export default function CheckInScreen() {
           </Text>
         </View>
 
-        <View style={styles.moodGrid}>
-          {moodOptions.map((mood) => {
-            const isActive = selectedMood === mood;
-            const moodColor = moodColors[mood];
-
-            return (
-              <Pressable
-                key={mood}
-                onPress={() => {
-                  setSelectedMood(mood);
-                  setShowValidation(false);
-                }}
-                style={styles.moodItem}
-              >
-                <View
-                  style={[
-                    styles.moodOrb,
-                    {
-                      backgroundColor: moodColor,
-                      opacity: isActive ? 1 : 0.28,
-                      transform: [{ scale: isActive ? 1.12 : 1 }],
-                    },
-                  ]}
-                />
-                <Text
-                  style={[styles.moodText, isActive && { color: colors.text }]}
-                >
-                  {mood}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {showValidation ? (
-          <Text style={styles.validationText}>
-            Select a mood first. The app is emotional, not psychic.
-          </Text>
-        ) : null}
-
         <View style={styles.panel}>
+          <View style={styles.moodBlock}>
+            <Text style={styles.sectionTitle}>Mood</Text>
+
+            <View style={styles.moodGrid}>
+              {moodOptions.map((mood) => {
+                const isActive = selectedMood === mood;
+                const moodColor = moodColors[mood];
+
+                return (
+                  <Pressable
+                    key={mood}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Select mood ${mood}`}
+                    onPress={() => handleSelectMood(mood)}
+                    style={({ pressed }) => [
+                      styles.moodItem,
+                      isActive && styles.moodItemActive,
+                      pressed && styles.moodItemPressed,
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.moodOrb,
+                        {
+                          backgroundColor: moodColor,
+                          opacity: isActive ? 1 : 0.42,
+                        },
+                      ]}
+                    />
+
+                    <Text
+                      style={[
+                        styles.moodText,
+                        isActive && {
+                          color: colors.text,
+                        },
+                      ]}
+                    >
+                      {mood}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {showValidation ? (
+              <Text style={styles.validationText}>
+                Select a mood first. The app is emotional, not psychic.
+              </Text>
+            ) : null}
+          </View>
+
           <ScaleSelector
             label="Energy"
             value={energy}
@@ -259,6 +323,7 @@ export default function CheckInScreen() {
               multiline
               maxLength={500}
               style={[styles.input, { borderColor: activeMoodColor }]}
+              textAlignVertical="top"
             />
 
             <Text style={styles.helperText}>
@@ -268,27 +333,36 @@ export default function CheckInScreen() {
             </Text>
           </View>
 
-          {isRiskState ? (
+          {shouldGoToSupport ? (
             <View style={styles.softAlert}>
               <Text style={styles.softAlertTitle}>Support mode is ready</Text>
               <Text style={styles.softAlertText}>
-                Your check-in suggests high tension and low energy. Ourae will
-                guide you to a calmer screen.
+                Your check-in suggests you may need something calmer and safer
+                right now. Ourae will guide you to support mode.
               </Text>
             </View>
           ) : null}
         </View>
-
         <Pressable
-          style={[
+          accessibilityRole="button"
+          accessibilityLabel={
+            shouldGoToSupport ? "Go to support mode" : "Complete check-in"
+          }
+          disabled={isSubmitting}
+          style={({ pressed }) => [
             styles.continueButton,
             { backgroundColor: activeMoodColor },
             !canContinue && styles.continueButtonDisabled,
+            pressed && canContinue && styles.continueButtonPressed,
           ]}
           onPress={handleContinue}
         >
           <Text style={styles.continueButtonText}>
-            {isRiskState ? "Go to support mode" : "Complete check-in"}
+            {isSubmitting
+              ? "Saving..."
+              : shouldGoToSupport
+                ? "Go to support mode"
+                : "Complete check-in"}
           </Text>
         </Pressable>
       </ScrollView>
@@ -315,42 +389,44 @@ const styles = StyleSheet.create({
     width: scale(260),
     height: scale(260),
     borderRadius: scale(130),
-    opacity: 0.14,
+    opacity: 0.1,
   },
+
   header: {
     marginBottom: verticalScale(24),
   },
   eyebrow: {
+    marginBottom: verticalScale(12),
+    color: colors.cyan,
     fontSize: scale(11),
     fontWeight: "900",
-    color: colors.cyan,
-    textTransform: "uppercase",
     letterSpacing: 1.7,
-    marginBottom: verticalScale(12),
+    textTransform: "uppercase",
   },
   title: {
+    marginBottom: verticalScale(10),
+    color: colors.text,
     fontSize: isSmallScreen ? scale(28) : scale(34),
     lineHeight: isSmallScreen ? verticalScale(35) : verticalScale(41),
     fontWeight: "900",
-    color: colors.text,
     letterSpacing: -0.8,
-    marginBottom: verticalScale(10),
   },
   subtitle: {
+    color: colors.textMuted,
     fontSize: scale(15),
     lineHeight: verticalScale(23),
-    color: colors.textMuted,
   },
+
   moodHero: {
     marginBottom: verticalScale(18),
   },
   moodHeroLabel: {
+    marginBottom: verticalScale(8),
     color: colors.textMuted,
     fontSize: scale(11),
     fontWeight: "900",
     letterSpacing: 1.4,
     textTransform: "uppercase",
-    marginBottom: verticalScale(8),
   },
   moodHeroValue: {
     color: colors.text,
@@ -360,50 +436,71 @@ const styles = StyleSheet.create({
     letterSpacing: -1.2,
   },
   moodHeroHint: {
+    marginTop: verticalScale(4),
     color: colors.textMuted,
     fontSize: scale(14),
-    marginTop: verticalScale(4),
     fontWeight: "700",
+  },
+
+  panel: {
+    marginBottom: verticalScale(18),
+    padding: scale(18),
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: scale(30),
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.soft,
+  },
+
+  moodBlock: {
+    marginBottom: verticalScale(28),
   },
   moodGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: scale(12),
-    marginBottom: verticalScale(20),
+    gap: scale(10),
+    marginTop: verticalScale(14),
   },
   moodItem: {
     width: "47%",
-    minHeight: verticalScale(56),
+    minHeight: verticalScale(50),
     flexDirection: "row",
     alignItems: "center",
-    gap: scale(12),
+    gap: scale(10),
+    paddingHorizontal: scale(10),
+    paddingVertical: verticalScale(8),
+    backgroundColor: "rgba(255,255,255,0.42)",
+    borderRadius: scale(18),
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  moodItemActive: {
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.borderStrong,
+  },
+  moodItemPressed: {
+    opacity: 0.72,
   },
   moodOrb: {
-    width: scale(34),
-    height: scale(34),
-    borderRadius: scale(17),
+    width: scale(22),
+    height: scale(22),
+    borderRadius: scale(11),
   },
   moodText: {
+    flex: 1,
     color: colors.textMuted,
-    fontSize: scale(15),
+    fontSize: scale(13),
     fontWeight: "900",
   },
+
   validationText: {
+    marginTop: verticalScale(12),
     color: colors.danger,
     fontSize: scale(13),
     lineHeight: verticalScale(19),
     fontWeight: "800",
-    marginBottom: verticalScale(16),
   },
-  panel: {
-    backgroundColor: "rgba(255,255,255,0.028)",
-    borderRadius: scale(30),
-    padding: scale(18),
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: verticalScale(18),
-    ...shadows.soft,
-  },
+
   scaleBlock: {
     marginBottom: verticalScale(28),
   },
@@ -433,7 +530,7 @@ const styles = StyleSheet.create({
   scaleSegment: {
     height: verticalScale(8),
     borderRadius: 999,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: "rgba(23,19,33,0.1)",
   },
   scaleSegmentSelected: {
     height: verticalScale(14),
@@ -448,23 +545,23 @@ const styles = StyleSheet.create({
     color: colors.textFaint,
     fontSize: scale(11),
     fontWeight: "800",
-    textTransform: "uppercase",
     letterSpacing: 1,
+    textTransform: "uppercase",
   },
+
   noteBlock: {
     marginTop: verticalScale(2),
   },
   input: {
     minHeight: verticalScale(132),
     marginTop: verticalScale(12),
-    backgroundColor: "rgba(255,255,255,0.035)",
-    borderRadius: scale(26),
-    borderWidth: 1,
     padding: scale(18),
     color: colors.text,
+    backgroundColor: "rgba(255,255,255,0.5)",
+    borderRadius: scale(26),
+    borderWidth: 1,
     fontSize: scale(15),
     lineHeight: verticalScale(22),
-    textAlignVertical: "top",
   },
   helperText: {
     marginTop: verticalScale(8),
@@ -473,30 +570,32 @@ const styles = StyleSheet.create({
     lineHeight: verticalScale(18),
     fontWeight: "700",
   },
+
   softAlert: {
     marginTop: verticalScale(18),
     padding: scale(16),
-    borderRadius: scale(22),
     backgroundColor: colors.dangerSoft,
+    borderRadius: scale(22),
     borderWidth: 1,
-    borderColor: "rgba(251,113,133,0.28)",
+    borderColor: "rgba(232,111,131,0.24)",
   },
   softAlertTitle: {
-    color: colors.danger,
+    marginBottom: verticalScale(6),
+    color: colors.text,
     fontSize: scale(14),
     fontWeight: "900",
-    marginBottom: verticalScale(6),
   },
   softAlertText: {
-    color: "#FECACA",
+    color: colors.textSoft,
     fontSize: scale(13),
     lineHeight: verticalScale(20),
     fontWeight: "700",
   },
+
   continueButton: {
-    borderRadius: scale(24),
-    paddingVertical: verticalScale(17),
     alignItems: "center",
+    paddingVertical: verticalScale(17),
+    borderRadius: scale(24),
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.16)",
     shadowColor: colors.violet,
@@ -504,6 +603,9 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 12 },
     elevation: 8,
+  },
+  continueButtonPressed: {
+    opacity: 0.86,
   },
   continueButtonDisabled: {
     opacity: 0.65,

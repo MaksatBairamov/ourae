@@ -14,6 +14,10 @@ export type EmotionalInsightResult = {
 const OPENROUTER_API_KEY = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY;
 const MODEL = process.env.EXPO_PUBLIC_OPENROUTER_MODEL || "openai/gpt-4o-mini";
 
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const REQUEST_TIMEOUT_MS = 12000;
+const MAX_NOTE_LENGTH = 700;
+
 const crisisKeywords = [
   "die",
   "dying",
@@ -25,12 +29,29 @@ const crisisKeywords = [
   "self-harm",
   "want to disappear",
   "do not want to live",
+  "i don't want to live",
+  "i dont want to live",
+  "i want to die",
+  "i want to kill myself",
 ];
 
+function normalizeText(text: string) {
+  return text.trim().toLowerCase();
+}
+
 function containsCrisisText(note: string) {
-  const normalized = note.toLowerCase();
+  const normalized = normalizeText(note);
 
   return crisisKeywords.some((keyword) => normalized.includes(keyword));
+}
+
+function sanitizeInput(input: EmotionalInsightInput): EmotionalInsightInput {
+  return {
+    mood: input.mood.trim() || "Unknown",
+    energy: Math.min(Math.max(Number(input.energy) || 0, 1), 10),
+    anxiety: Math.min(Math.max(Number(input.anxiety) || 0, 1), 10),
+    note: input.note.trim().slice(0, MAX_NOTE_LENGTH),
+  };
 }
 
 function getFallbackInsight(
@@ -38,11 +59,19 @@ function getFallbackInsight(
 ): EmotionalInsightResult {
   if (containsCrisisText(input.note)) {
     return {
-      title: "Please seek support now.",
+      title: "Please reach out now.",
       insight:
-        "This sounds like a serious and painful moment. You should not stay alone with this feeling.",
-      action:
-        "Contact local emergency support or someone you trust immediately.",
+        "This sounds serious and painful. You should not stay alone with this feeling.",
+      action: "Contact emergency support or someone you trust immediately.",
+    };
+  }
+
+  if (input.anxiety >= 8 && input.energy <= 3) {
+    return {
+      title: "Your body may need safety first.",
+      insight:
+        "High anxiety with low energy can feel intense and exhausting. You do not need to solve everything at once.",
+      action: "Put both feet on the floor and take one slow exhale.",
     };
   }
 
@@ -50,8 +79,8 @@ function getFallbackInsight(
     return {
       title: "Your system feels activated.",
       insight:
-        "Your anxiety level is high, so your body may be trying to protect you even if there is no immediate danger.",
-      action: "Try one slow exhale before doing anything else.",
+        "Your anxiety level is high, so your body may be trying to protect you. Slowing down may help before taking action.",
+      action: "Try one longer exhale before doing anything else.",
     };
   }
 
@@ -64,12 +93,31 @@ function getFallbackInsight(
     };
   }
 
+  if (input.mood === "Happy" || input.mood === "Motivated") {
+    return {
+      title: "There is something useful here.",
+      insight:
+        "This moment has some lightness or momentum in it. Noticing it can help you understand what supports you.",
+      action: "Write down one thing that helped create this feeling.",
+    };
+  }
+
   return {
     title: "You created a moment of awareness.",
     insight:
       "Naming your state helps turn emotional noise into something you can understand.",
     action: "Come back later and check if the feeling changed.",
   };
+}
+
+function safeString(value: unknown, fallback: string, maxLength: number) {
+  if (typeof value !== "string") return fallback;
+
+  const cleaned = value.trim();
+
+  if (!cleaned) return fallback;
+
+  return cleaned.slice(0, maxLength);
 }
 
 function extractJson(content: string): EmotionalInsightResult {
@@ -82,25 +130,36 @@ function extractJson(content: string): EmotionalInsightResult {
   const parsed = JSON.parse(match[0]);
 
   return {
-    title: String(parsed.title || "You created a moment of awareness."),
-    insight: String(parsed.insight || "You noticed what is happening inside."),
-    action: String(parsed.action || "Take one small gentle step next."),
+    title: safeString(parsed.title, "You created a moment of awareness.", 80),
+    insight: safeString(
+      parsed.insight,
+      "You noticed what is happening inside.",
+      260,
+    ),
+    action: safeString(parsed.action, "Take one small gentle step next.", 140),
   };
 }
 
-export async function getEmotionalInsight(
-  input: EmotionalInsightInput,
-): Promise<EmotionalInsightResult> {
-  if (containsCrisisText(input.note)) {
-    return getFallbackInsight(input);
-  }
-
-  if (!OPENROUTER_API_KEY) {
-    return getFallbackInsight(input);
-  }
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeoutMs: number,
+) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const prompt = `
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function buildPrompt(input: EmotionalInsightInput) {
+  return `
 You are Ourae, a calm emotional wellness assistant.
 
 Analyze this check-in and return ONLY valid JSON.
@@ -113,8 +172,10 @@ Rules:
 - Use simple language.
 - Give one tiny next step.
 - No markdown.
-- avoid generic phrases like "feeling X but Y"
-- sound natural, like a human reflection
+- Avoid generic phrases like "feeling X but Y".
+- Sound natural, like a human reflection.
+- Do not overpromise.
+- Do not say everything will be okay.
 
 If the user mentions death, suicide, self-harm, or wanting to disappear:
 - do not give a normal reflection
@@ -129,14 +190,29 @@ Note: "${input.note || "No note provided"}"
 
 Return this JSON shape:
 {
-  "title": "short human reflection, not generic, sound like inner thought",
+  "title": "short human reflection, not generic",
   "insight": "supportive insight, max 2 sentences",
   "action": "one tiny next step, max 1 sentence"
 }
 `;
+}
 
-    const response = await fetch(
-      "https://openrouter.ai/api/v1/chat/completions",
+export async function getEmotionalInsight(
+  rawInput: EmotionalInsightInput,
+): Promise<EmotionalInsightResult> {
+  const input = sanitizeInput(rawInput);
+
+  if (containsCrisisText(input.note)) {
+    return getFallbackInsight(input);
+  }
+
+  if (!OPENROUTER_API_KEY) {
+    return getFallbackInsight(input);
+  }
+
+  try {
+    const response = await fetchWithTimeout(
+      OPENROUTER_URL,
       {
         method: "POST",
         headers: {
@@ -147,11 +223,17 @@ Return this JSON shape:
         },
         body: JSON.stringify({
           model: MODEL,
-          messages: [{ role: "user", content: prompt }],
+          messages: [
+            {
+              role: "user",
+              content: buildPrompt(input),
+            },
+          ],
           temperature: 0.35,
           max_tokens: 220,
         }),
       },
+      REQUEST_TIMEOUT_MS,
     );
 
     if (!response.ok) {
@@ -161,12 +243,13 @@ Return this JSON shape:
     const data = await response.json();
     const content = data?.choices?.[0]?.message?.content;
 
-    if (!content) {
+    if (typeof content !== "string") {
       return getFallbackInsight(input);
     }
 
     return extractJson(content);
-  } catch {
+  } catch (error) {
+    console.error("Failed to get emotional insight:", error);
     return getFallbackInsight(input);
   }
 }

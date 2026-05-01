@@ -1,3 +1,5 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 export type CheckInData = {
   mood: string | null;
   energy: number;
@@ -10,22 +12,38 @@ export type StoredCheckIn = CheckInData & {
   created_at: string;
 };
 
-const previewCheckIns: StoredCheckIn[] = [];
+const STORAGE_KEY = "ourae_checkins";
 
 export async function initDatabase() {
-  console.log("SQLite disabled on web preview.");
+  // нічого не треба
 }
 
-export function saveCheckIn(data: CheckInData) {
-  previewCheckIns.unshift({
+export async function saveCheckIn(data: CheckInData) {
+  const existing = await getRecentCheckIns();
+
+  const newItem: StoredCheckIn = {
     ...data,
     id: Date.now(),
     created_at: new Date().toISOString(),
-  });
+  };
 
-  console.log("Preview save:", data);
+  const updated = [newItem, ...existing].slice(0, 50);
+
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 }
 
-export function getRecentCheckIns(): StoredCheckIn[] {
-  return previewCheckIns;
+export async function getRecentCheckIns(): Promise<StoredCheckIn[]> {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+
+    if (!raw) return [];
+
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+export async function clearAllCheckIns() {
+  await AsyncStorage.removeItem(STORAGE_KEY);
 }
