@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { AuraScene } from "../components/AuraScene";
 import { scale, verticalScale } from "../constants/layout";
 import { colors, moodColors } from "../constants/theme";
 import { getRecentCheckIns, type StoredCheckIn } from "../lib/db";
@@ -39,11 +40,63 @@ function formatDate(value: string) {
   });
 }
 
+function OrbitingBrand({ color }: { color: string }) {
+  const rotate = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.timing(rotate, {
+        toValue: 1,
+        duration: 18000,
+        useNativeDriver: true,
+      }),
+    );
+
+    animation.start();
+
+    return () => animation.stop();
+  }, [rotate]);
+
+  return (
+    <View pointerEvents="none" style={styles.orbitWrap}>
+      {"Ourae".split("").map((letter, index) => {
+        const baseAngle = (index / 5) * 360;
+
+        const orbitRotate = rotate.interpolate({
+          inputRange: [0, 1],
+          outputRange: [`${baseAngle}deg`, `${baseAngle + 360}deg`],
+        });
+
+        const letterRotate = rotate.interpolate({
+          inputRange: [0, 1],
+          outputRange: [`${-baseAngle}deg`, `${-(baseAngle + 360)}deg`],
+        });
+
+        return (
+          <Animated.View
+            key={`${letter}-${index}`}
+            style={[
+              styles.orbitLetterWrap,
+              {
+                transform: [
+                  { rotate: orbitRotate },
+                  { translateY: -scale(112) },
+                  { rotate: letterRotate },
+                ],
+              },
+            ]}
+          >
+            <Text style={[styles.orbitLetter, { color }]}>{letter}</Text>
+          </Animated.View>
+        );
+      })}
+    </View>
+  );
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const [checkIns, setCheckIns] = useState<StoredCheckIn[]>([]);
-
-  const orbScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     let isMounted = true;
@@ -62,27 +115,6 @@ export default function HomeScreen() {
       isMounted = false;
     };
   }, []);
-
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(orbScale, {
-          toValue: 1.12,
-          duration: 1800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(orbScale, {
-          toValue: 1,
-          duration: 1800,
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-
-    animation.start();
-
-    return () => animation.stop();
-  }, [orbScale]);
 
   const stats = useMemo(() => {
     if (checkIns.length === 0) return null;
@@ -153,157 +185,155 @@ export default function HomeScreen() {
           style={[styles.bgGlowTwo, { backgroundColor: moodColor }]}
         />
 
-        <View style={styles.header}>
-          <View style={styles.brandRow}>
-            <Animated.View
-              style={[
-                styles.logoMark,
-                {
-                  transform: [{ scale: orbScale }],
-                },
-              ]}
-            >
-              <View style={[styles.logoCore, { backgroundColor: moodColor }]} />
-            </Animated.View>
+        <View style={styles.auraStage}>
+          <View style={styles.auraWrap}>
+            <OrbitingBrand color={moodColor} />
 
-            <View>
-              <Text style={styles.title}>Ourae</Text>
-              <Text style={styles.subtitle}>Emotional dashboard</Text>
+            <AuraScene
+              color={moodColor}
+              energy={stats?.avgEnergy ?? 5}
+              anxiety={stats?.avgAnxiety ?? 3}
+            />
+          </View>
+        </View>
+
+        <View style={styles.contentBlock}>
+          <View style={styles.hero}>
+            <Text style={styles.heroLabel}>Current trend</Text>
+
+            <Text style={[styles.heroValue, { color: moodColor }]}>
+              {stats ? stats.trend : "No data yet"}
+            </Text>
+
+            <View style={styles.heroMetrics}>
+              <Text style={styles.heroMetricText}>
+                Energy {stats?.avgEnergy ?? "-"}/10
+              </Text>
+
+              <View style={styles.softDivider} />
+
+              <Text style={styles.heroMetricText}>
+                Anxiety {stats?.avgAnxiety ?? "-"}/10
+              </Text>
+
+              <View style={styles.softDivider} />
+
+              <Text style={styles.heroMetricText}>
+                {stats?.total ?? 0} logs
+              </Text>
             </View>
           </View>
-        </View>
-
-        <View style={styles.hero}>
-          <Text style={styles.heroLabel}>Current trend</Text>
-
-          <Text style={[styles.heroValue, { color: moodColor }]}>
-            {stats ? stats.trend : "No data yet"}
-          </Text>
-
-          <View style={styles.heroMetrics}>
-            <Text style={styles.heroMetricText}>
-              Energy {stats?.avgEnergy ?? "-"}/10
-            </Text>
-
-            <View style={styles.softDivider} />
-
-            <Text style={styles.heroMetricText}>
-              Anxiety {stats?.avgAnxiety ?? "-"}/10
-            </Text>
-
-            <View style={styles.softDivider} />
-
-            <Text style={styles.heroMetricText}>{stats?.total ?? 0} logs</Text>
-          </View>
-        </View>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Start new check-in"
-          style={({ pressed }) => [
-            styles.primaryButton,
-            { backgroundColor: moodColor },
-            pressed && styles.buttonPressed,
-          ]}
-          onPress={handleCheckIn}
-        >
-          <Text style={styles.primaryButtonText}>New check-in</Text>
-        </Pressable>
-
-        <View style={styles.shortcuts}>
-          <Pressable
-            accessibilityRole="button"
-            style={({ pressed }) => [
-              styles.shortcutItem,
-              pressed && styles.buttonPressed,
-            ]}
-            onPress={handleOpenHistory}
-          >
-            <Text style={styles.shortcutTitle}>Patterns</Text>
-            <Text style={styles.shortcutText}>Full history</Text>
-          </Pressable>
-
-          <View style={styles.shortcutDivider} />
 
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel="Start new check-in"
             style={({ pressed }) => [
-              styles.shortcutItem,
+              styles.primaryButton,
+              { backgroundColor: moodColor },
               pressed && styles.buttonPressed,
             ]}
             onPress={handleCheckIn}
           >
-            <Text style={styles.shortcutTitle}>Reset</Text>
-            <Text style={styles.shortcutText}>2 min check</Text>
+            <Text style={styles.primaryButtonText}>New check-in</Text>
           </Pressable>
-        </View>
 
-        <View style={styles.historyHeader}>
-          <Text style={styles.sectionTitle}>Recent check-ins</Text>
-
-          {checkIns.length > 0 ? (
-            <Pressable onPress={handleOpenHistory}>
-              <Text style={styles.viewAllText}>View all</Text>
+          <View style={styles.shortcuts}>
+            <Pressable
+              accessibilityRole="button"
+              style={({ pressed }) => [
+                styles.shortcutItem,
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={handleOpenHistory}
+            >
+              <Text style={styles.shortcutTitle}>Patterns</Text>
+              <Text style={styles.shortcutText}>Full history</Text>
             </Pressable>
-          ) : null}
-        </View>
 
-        {recentCheckIns.length === 0 ? (
-          <View style={styles.emptyBlock}>
-            <Text style={styles.emptyTitle}>No check-ins yet</Text>
-            <Text style={styles.emptyText}>
-              Start with one short check-in. Patterns can wait, apparently.
-            </Text>
+            <View style={styles.shortcutDivider} />
+
+            <Pressable
+              accessibilityRole="button"
+              style={({ pressed }) => [
+                styles.shortcutItem,
+                pressed && styles.buttonPressed,
+              ]}
+              onPress={handleCheckIn}
+            >
+              <Text style={styles.shortcutTitle}>Reset</Text>
+              <Text style={styles.shortcutText}>2 min check</Text>
+            </Pressable>
           </View>
-        ) : (
-          <View style={styles.historyList}>
-            {recentCheckIns.map((item) => {
-              const mood = item.mood || "Unknown";
-              const color = getMoodColor(mood);
 
-              return (
-                <View key={item.id} style={styles.historyItem}>
-                  <View style={[styles.dot, { backgroundColor: color }]} />
+          <View style={styles.historyHeader}>
+            <Text style={styles.sectionTitle}>Recent check-ins</Text>
 
-                  <View style={styles.historyContent}>
-                    <View style={styles.historyTopRow}>
-                      <Text style={[styles.historyMood, { color }]}>
-                        {mood}
-                      </Text>
-
-                      <Text style={styles.historyDate}>
-                        {formatDate(item.created_at)}
-                      </Text>
-                    </View>
-
-                    <Text style={styles.historyMeta}>
-                      Energy {item.energy}/10 · Anxiety {item.anxiety}/10
-                    </Text>
-
-                    {item.note.trim().length > 0 ? (
-                      <Text style={styles.historyNote} numberOfLines={1}>
-                        “{item.note.trim()}”
-                      </Text>
-                    ) : null}
-                  </View>
-                </View>
-              );
-            })}
-            <View style={styles.footer}>
-              <Pressable onPress={() => router.push("/legal/terms")}>
-                <Text style={styles.footerLink}>Terms</Text>
+            {checkIns.length > 0 ? (
+              <Pressable onPress={handleOpenHistory}>
+                <Text style={styles.viewAllText}>View all</Text>
               </Pressable>
+            ) : null}
+          </View>
 
-              <Pressable onPress={() => router.push("/legal/privacy")}>
-                <Text style={styles.footerLink}>Privacy</Text>
-              </Pressable>
+          {recentCheckIns.length === 0 ? (
+            <View style={styles.emptyBlock}>
+              <Text style={styles.emptyTitle}>No check-ins yet</Text>
+              <Text style={styles.emptyText}>
+                Start with one short check-in. Patterns can wait, apparently.
+              </Text>
             </View>
-          </View>
-        )}
+          ) : (
+            <View style={styles.historyList}>
+              {recentCheckIns.map((item) => {
+                const mood = item.mood || "Unknown";
+                const color = getMoodColor(mood);
+
+                return (
+                  <View key={item.id} style={styles.historyItem}>
+                    <View style={[styles.dot, { backgroundColor: color }]} />
+
+                    <View style={styles.historyContent}>
+                      <View style={styles.historyTopRow}>
+                        <Text style={[styles.historyMood, { color }]}>
+                          {mood}
+                        </Text>
+
+                        <Text style={styles.historyDate}>
+                          {formatDate(item.created_at)}
+                        </Text>
+                      </View>
+
+                      <Text style={styles.historyMeta}>
+                        Energy {item.energy}/10 · Anxiety {item.anxiety}/10
+                      </Text>
+
+                      {item.note.trim().length > 0 ? (
+                        <Text style={styles.historyNote} numberOfLines={1}>
+                          “{item.note.trim()}”
+                        </Text>
+                      ) : null}
+                    </View>
+                  </View>
+                );
+              })}
+
+              <View style={styles.footer}>
+                <Pressable onPress={() => router.push("/legal/terms")}>
+                  <Text style={styles.footerLink}>Terms</Text>
+                </Pressable>
+
+                <Pressable onPress={() => router.push("/legal/privacy")}>
+                  <Text style={styles.footerLink}>Privacy</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -311,11 +341,15 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-    paddingHorizontal: scale(24),
-    paddingTop: verticalScale(30),
+    paddingTop: verticalScale(18),
     paddingBottom: verticalScale(36),
     backgroundColor: colors.bg,
+    overflow: "visible",
   },
+  contentBlock: {
+    paddingHorizontal: scale(24),
+  },
+
   bgGlowOne: {
     position: "absolute",
     top: verticalScale(20),
@@ -336,48 +370,50 @@ const styles = StyleSheet.create({
     opacity: 0.18,
   },
 
-  header: {
-    marginBottom: verticalScale(38),
-  },
-  brandRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  logoMark: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: scale(20),
+  auraStage: {
+    width: "100%",
+    height: verticalScale(330),
     alignItems: "center",
     justifyContent: "center",
-    marginRight: scale(13),
-    backgroundColor: colors.surfaceElevated,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.16,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 5,
+    overflow: "visible",
+    marginBottom: verticalScale(-8),
   },
-  logoCore: {
-    width: scale(18),
-    height: scale(18),
-    borderRadius: scale(9),
+  auraWrap: {
+    position: "relative",
+    width: "100%",
+    height: verticalScale(330),
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "visible",
   },
-  title: {
-    color: colors.text,
-    fontSize: scale(37),
-    lineHeight: verticalScale(40),
+  orbitWrap: {
+    position: "absolute",
+    width: scale(250),
+    height: scale(250),
+    borderRadius: scale(125),
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 4,
+    overflow: "visible",
+  },
+  orbitLetterWrap: {
+    position: "absolute",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  orbitLetter: {
+    color: colors.primary,
+    fontSize: scale(18),
     fontWeight: "900",
-    letterSpacing: -1.4,
-  },
-  subtitle: {
-    marginTop: verticalScale(3),
-    color: colors.textMuted,
-    fontSize: scale(13),
-    fontWeight: "700",
+    letterSpacing: -0.4,
+    opacity: 0.76,
+    textShadowColor: "rgba(23,19,33,0.14)",
+    textShadowRadius: 8,
   },
 
   hero: {
     marginBottom: verticalScale(24),
+    alignItems: "center",
   },
   heroLabel: {
     marginBottom: verticalScale(8),
@@ -386,6 +422,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 1.4,
     textTransform: "uppercase",
+    textAlign: "center",
   },
   heroValue: {
     marginBottom: verticalScale(18),
@@ -393,10 +430,12 @@ const styles = StyleSheet.create({
     lineHeight: verticalScale(53),
     fontWeight: "900",
     letterSpacing: -1.7,
+    textAlign: "center",
   },
   heroMetrics: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     flexWrap: "wrap",
     gap: scale(8),
   },
