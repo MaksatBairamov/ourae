@@ -1,50 +1,72 @@
-# Welcome to your Expo app 👋
+# Ourae
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A lightweight emotional check-in app designed to help users understand their current state without complexity or pressure.
 
-## Get started
+---
 
-1. Install dependencies
+## Overview
 
-   ```bash
-   npm install
-   ```
+Ourae provides a simple and calm space for self-reflection.
 
-2. Start the app
+Instead of long journaling or clinical tracking, the app focuses on quick emotional awareness:
+- What do I feel?
+- How is my energy?
+- How anxious am I?
 
-   ```bash
-   npx expo start
-   ```
+The goal is not diagnosis, but clarity.
 
-In the output, you'll find options to open the app in a
+---
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## Features
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+- Quick emotional check-in (mood, energy, anxiety)
+- Optional short notes
+- AI-generated reflections (non-diagnostic)
+- Panic support mode (breathing + grounding)
+- History view to observe patterns
+- Privacy-first approach (data stored locally)
 
-## Get a fresh project
+---
 
-When you're ready, run:
+## Tech Stack
+
+- React Native (Expo)
+- TypeScript
+- SQLite (mobile)
+- AsyncStorage (web fallback)
+- OpenRouter API (AI layer)
+- Vercel (web deployment)
+
+---
+
+## Live Demo
+
+https://ourae.vercel.app
+
+---
+
+## How It Works
+
+1. User completes a short check-in
+2. The app processes the input
+3. A short AI reflection is generated
+4. Data is stored locally on the device
+5. Users can review past entries in the history screen
+
+---
+
+## Privacy & Safety
+
+- All check-in data is stored locally on the user's device
+- No external database is used in this MVP
+- AI responses are supportive reflections, not medical advice
+
+> Ourae is a reflection tool, not a diagnosis.
+
+---
+
+## Running Locally
 
 ```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+npm install
+npx expo start
