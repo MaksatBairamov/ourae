@@ -316,7 +316,6 @@ export default function PanicScreen() {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -328,27 +327,28 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingHorizontal: scale(24),
-    paddingTop: verticalScale(28),
-    paddingBottom: verticalScale(30),
+    paddingTop: verticalScale(30),
+    paddingBottom: verticalScale(32),
     backgroundColor: colors.bg,
   },
+
   glow: {
     position: "absolute",
-    top: verticalScale(64),
-    right: scale(-88),
-    width: scale(250),
-    height: scale(250),
-    borderRadius: scale(125),
+    top: verticalScale(54),
+    right: scale(-90),
+    width: scale(270),
+    height: scale(270),
+    borderRadius: scale(135),
     backgroundColor: colors.cyan,
-    opacity: 0.11,
+    opacity: 0.16,
   },
 
   header: {
-    marginBottom: verticalScale(26),
+    marginBottom: verticalScale(28),
   },
   kicker: {
     marginBottom: verticalScale(10),
-    color: colors.textMuted,
+    color: colors.cyan,
     fontSize: scale(11),
     fontWeight: "900",
     letterSpacing: 1.7,
@@ -357,17 +357,17 @@ const styles = StyleSheet.create({
   title: {
     marginBottom: verticalScale(8),
     color: colors.text,
-    fontSize: scale(38),
-    lineHeight: verticalScale(43),
+    fontSize: scale(40),
+    lineHeight: verticalScale(45),
     fontWeight: "900",
-    letterSpacing: -1.1,
+    letterSpacing: -1.3,
   },
   subtitle: {
     maxWidth: scale(285),
     color: colors.textMuted,
     fontSize: scale(15),
     lineHeight: verticalScale(22),
-    fontWeight: "600",
+    fontWeight: "700",
   },
 
   breathCard: {
@@ -380,17 +380,25 @@ const styles = StyleSheet.create({
   cardPressed: {
     opacity: 0.78,
   },
+
   breathRing: {
-    width: scale(178),
-    height: scale(178),
+    width: scale(182),
+    height: scale(182),
     alignItems: "center",
     justifyContent: "center",
     marginBottom: verticalScale(22),
     backgroundColor: colors.cyanSoft,
-    borderRadius: scale(89),
+    borderRadius: scale(91),
     borderWidth: 1,
-    borderColor: "rgba(66,199,217,0.34)",
+    borderColor: "rgba(16,166,184,0.34)",
+
+    shadowColor: colors.cyan,
+    shadowOpacity: 0.16,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
   },
+
   breathLabel: {
     color: colors.text,
     fontSize: scale(30),
@@ -401,8 +409,8 @@ const styles = StyleSheet.create({
   breathSeconds: {
     marginTop: verticalScale(4),
     color: colors.cyan,
-    fontSize: scale(44),
-    lineHeight: verticalScale(49),
+    fontSize: scale(46),
+    lineHeight: verticalScale(51),
     fontWeight: "900",
   },
   breathHint: {
@@ -440,6 +448,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: -0.5,
   },
+
   stepsList: {
     gap: verticalScale(11),
   },
@@ -451,7 +460,7 @@ const styles = StyleSheet.create({
   stepNumber: {
     width: scale(24),
     color: colors.cyan,
-    fontSize: scale(13),
+    fontSize: scale(14),
     fontWeight: "900",
   },
   stepText: {
@@ -511,19 +520,25 @@ const styles = StyleSheet.create({
   },
   supportNumber: {
     color: colors.cyan,
-    fontSize: scale(25),
+    fontSize: scale(26),
     fontWeight: "900",
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
   },
 
   actions: {
-    gap: verticalScale(11),
+    gap: verticalScale(12),
   },
   primaryButton: {
     alignItems: "center",
     paddingVertical: verticalScale(17),
     backgroundColor: colors.cyan,
-    borderRadius: scale(24),
+    borderRadius: scale(26),
+
+    shadowColor: colors.cyan,
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
   },
   primaryButtonPressed: {
     opacity: 0.85,
@@ -533,6 +548,7 @@ const styles = StyleSheet.create({
     fontSize: scale(16),
     fontWeight: "900",
   },
+
   secondaryButton: {
     alignItems: "center",
     paddingVertical: verticalScale(16),
@@ -545,6 +561,7 @@ const styles = StyleSheet.create({
     fontSize: scale(15),
     fontWeight: "900",
   },
+
   buttonDisabled: {
     opacity: 0.6,
   },

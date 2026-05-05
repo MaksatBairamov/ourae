@@ -377,26 +377,26 @@ const styles = StyleSheet.create({
   },
   container: {
     flexGrow: 1,
-    paddingHorizontal: scale(22),
-    paddingTop: verticalScale(26),
-    paddingBottom: verticalScale(28),
+    paddingHorizontal: scale(24),
+    paddingTop: verticalScale(30),
+    paddingBottom: verticalScale(32),
     backgroundColor: colors.bg,
   },
   glow: {
     position: "absolute",
-    top: verticalScale(70),
-    right: scale(-90),
-    width: scale(260),
-    height: scale(260),
-    borderRadius: scale(130),
-    opacity: 0.1,
+    top: verticalScale(56),
+    right: scale(-104),
+    width: scale(280),
+    height: scale(280),
+    borderRadius: scale(140),
+    opacity: 0.16,
   },
 
   header: {
-    marginBottom: verticalScale(24),
+    marginBottom: verticalScale(26),
   },
   eyebrow: {
-    marginBottom: verticalScale(12),
+    marginBottom: verticalScale(10),
     color: colors.cyan,
     fontSize: scale(11),
     fontWeight: "900",
@@ -406,19 +406,21 @@ const styles = StyleSheet.create({
   title: {
     marginBottom: verticalScale(10),
     color: colors.text,
-    fontSize: isSmallScreen ? scale(28) : scale(34),
-    lineHeight: isSmallScreen ? verticalScale(35) : verticalScale(41),
+    fontSize: isSmallScreen ? scale(29) : scale(36),
+    lineHeight: isSmallScreen ? verticalScale(35) : verticalScale(42),
     fontWeight: "900",
-    letterSpacing: -0.8,
+    letterSpacing: -1.1,
   },
   subtitle: {
+    maxWidth: scale(305),
     color: colors.textMuted,
     fontSize: scale(15),
     lineHeight: verticalScale(23),
+    fontWeight: "600",
   },
 
   moodHero: {
-    marginBottom: verticalScale(18),
+    marginBottom: verticalScale(20),
   },
   moodHeroLabel: {
     marginBottom: verticalScale(8),
@@ -430,10 +432,10 @@ const styles = StyleSheet.create({
   },
   moodHeroValue: {
     color: colors.text,
-    fontSize: scale(42),
-    lineHeight: verticalScale(48),
+    fontSize: scale(46),
+    lineHeight: verticalScale(52),
     fontWeight: "900",
-    letterSpacing: -1.2,
+    letterSpacing: -1.5,
   },
   moodHeroHint: {
     marginTop: verticalScale(4),
@@ -443,17 +445,17 @@ const styles = StyleSheet.create({
   },
 
   panel: {
-    marginBottom: verticalScale(18),
+    marginBottom: verticalScale(20),
     padding: scale(18),
-    backgroundColor: colors.surfaceSoft,
-    borderRadius: scale(30),
+    backgroundColor: colors.surface,
+    borderRadius: scale(32),
     borderWidth: 1,
     borderColor: colors.border,
     ...shadows.soft,
   },
 
   moodBlock: {
-    marginBottom: verticalScale(28),
+    marginBottom: verticalScale(30),
   },
   moodGrid: {
     flexDirection: "row",
@@ -463,28 +465,33 @@ const styles = StyleSheet.create({
   },
   moodItem: {
     width: "47%",
-    minHeight: verticalScale(50),
+    minHeight: verticalScale(52),
     flexDirection: "row",
     alignItems: "center",
     gap: scale(10),
-    paddingHorizontal: scale(10),
-    paddingVertical: verticalScale(8),
-    backgroundColor: "rgba(255,255,255,0.42)",
-    borderRadius: scale(18),
+    paddingHorizontal: scale(11),
+    paddingVertical: verticalScale(9),
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: scale(20),
     borderWidth: 1,
     borderColor: colors.border,
   },
   moodItemActive: {
     backgroundColor: colors.surfaceElevated,
     borderColor: colors.borderStrong,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
   },
   moodItemPressed: {
     opacity: 0.72,
   },
   moodOrb: {
-    width: scale(22),
-    height: scale(22),
-    borderRadius: scale(11),
+    width: scale(23),
+    height: scale(23),
+    borderRadius: scale(11.5),
   },
   moodText: {
     flex: 1,
@@ -502,7 +509,7 @@ const styles = StyleSheet.create({
   },
 
   scaleBlock: {
-    marginBottom: verticalScale(28),
+    marginBottom: verticalScale(30),
   },
   scaleHeader: {
     flexDirection: "row",
@@ -514,10 +521,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: scale(16),
     fontWeight: "900",
+    letterSpacing: -0.2,
   },
   scaleValue: {
     fontSize: scale(22),
     fontWeight: "900",
+    letterSpacing: -0.4,
   },
   scaleTrack: {
     flexDirection: "row",
@@ -529,12 +538,12 @@ const styles = StyleSheet.create({
   },
   scaleSegment: {
     height: verticalScale(8),
-    borderRadius: 999,
-    backgroundColor: "rgba(23,19,33,0.1)",
+    borderRadius: scale(999),
+    backgroundColor: "rgba(23,19,33,0.11)",
   },
   scaleSegmentSelected: {
-    height: verticalScale(14),
-    marginTop: verticalScale(-3),
+    height: verticalScale(15),
+    marginTop: verticalScale(-3.5),
   },
   scaleLabels: {
     flexDirection: "row",
@@ -544,7 +553,7 @@ const styles = StyleSheet.create({
   scaleLabelText: {
     color: colors.textFaint,
     fontSize: scale(11),
-    fontWeight: "800",
+    fontWeight: "900",
     letterSpacing: 1,
     textTransform: "uppercase",
   },
@@ -557,11 +566,12 @@ const styles = StyleSheet.create({
     marginTop: verticalScale(12),
     padding: scale(18),
     color: colors.text,
-    backgroundColor: "rgba(255,255,255,0.5)",
+    backgroundColor: colors.surfaceElevated,
     borderRadius: scale(26),
     borderWidth: 1,
     fontSize: scale(15),
     lineHeight: verticalScale(22),
+    fontWeight: "600",
   },
   helperText: {
     marginTop: verticalScale(8),
@@ -577,7 +587,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.dangerSoft,
     borderRadius: scale(22),
     borderWidth: 1,
-    borderColor: "rgba(232,111,131,0.24)",
+    borderColor: "rgba(201,67,90,0.22)",
   },
   softAlertTitle: {
     marginBottom: verticalScale(6),
@@ -594,13 +604,13 @@ const styles = StyleSheet.create({
 
   continueButton: {
     alignItems: "center",
-    paddingVertical: verticalScale(17),
-    borderRadius: scale(24),
+    paddingVertical: verticalScale(18),
+    borderRadius: scale(28),
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    shadowColor: colors.violet,
-    shadowOpacity: 0.28,
-    shadowRadius: 20,
+    borderColor: "rgba(255,255,255,0.42)",
+    shadowColor: colors.primary,
+    shadowOpacity: 0.24,
+    shadowRadius: 22,
     shadowOffset: { width: 0, height: 12 },
     elevation: 8,
   },
@@ -608,10 +618,10 @@ const styles = StyleSheet.create({
     opacity: 0.86,
   },
   continueButtonDisabled: {
-    opacity: 0.65,
+    opacity: 0.6,
   },
   continueButtonText: {
-    color: "#05060D",
+    color: colors.textInverse,
     fontSize: scale(16),
     fontWeight: "900",
   },

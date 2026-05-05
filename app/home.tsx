@@ -304,7 +304,6 @@ export default function HomeScreen() {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -313,63 +312,68 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     paddingHorizontal: scale(24),
-    paddingTop: verticalScale(28),
-    paddingBottom: verticalScale(34),
+    paddingTop: verticalScale(30),
+    paddingBottom: verticalScale(36),
     backgroundColor: colors.bg,
   },
   bgGlowOne: {
     position: "absolute",
-    top: verticalScale(42),
-    left: scale(-100),
-    width: scale(240),
-    height: scale(240),
-    borderRadius: scale(120),
+    top: verticalScale(20),
+    left: scale(-110),
+    width: scale(260),
+    height: scale(260),
+    borderRadius: scale(130),
     backgroundColor: colors.warm,
-    opacity: 0.16,
+    opacity: 0.24,
   },
   bgGlowTwo: {
     position: "absolute",
-    top: verticalScale(110),
-    right: scale(-110),
-    width: scale(250),
-    height: scale(250),
-    borderRadius: scale(125),
-    opacity: 0.11,
+    top: verticalScale(96),
+    right: scale(-120),
+    width: scale(280),
+    height: scale(280),
+    borderRadius: scale(140),
+    opacity: 0.18,
   },
 
   header: {
-    marginBottom: verticalScale(34),
+    marginBottom: verticalScale(38),
   },
   brandRow: {
     flexDirection: "row",
     alignItems: "center",
   },
   logoMark: {
-    width: scale(36),
-    height: scale(36),
-    borderRadius: scale(18),
+    width: scale(40),
+    height: scale(40),
+    borderRadius: scale(20),
     alignItems: "center",
     justifyContent: "center",
-    marginRight: scale(12),
-    backgroundColor: "rgba(255,255,255,0.36)",
+    marginRight: scale(13),
+    backgroundColor: colors.surfaceElevated,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
   },
   logoCore: {
-    width: scale(17),
-    height: scale(17),
-    borderRadius: scale(8.5),
+    width: scale(18),
+    height: scale(18),
+    borderRadius: scale(9),
   },
   title: {
     color: colors.text,
-    fontSize: scale(35),
-    lineHeight: verticalScale(38),
+    fontSize: scale(37),
+    lineHeight: verticalScale(40),
     fontWeight: "900",
-    letterSpacing: -1.2,
+    letterSpacing: -1.4,
   },
   subtitle: {
     marginTop: verticalScale(3),
     color: colors.textMuted,
     fontSize: scale(13),
-    fontWeight: "600",
+    fontWeight: "700",
   },
 
   hero: {
@@ -378,17 +382,17 @@ const styles = StyleSheet.create({
   heroLabel: {
     marginBottom: verticalScale(8),
     color: colors.textMuted,
-    fontSize: scale(12),
-    fontWeight: "800",
-    letterSpacing: 1.1,
+    fontSize: scale(11),
+    fontWeight: "900",
+    letterSpacing: 1.4,
     textTransform: "uppercase",
   },
   heroValue: {
     marginBottom: verticalScale(18),
-    fontSize: scale(46),
-    lineHeight: verticalScale(52),
+    fontSize: scale(48),
+    lineHeight: verticalScale(53),
     fontWeight: "900",
-    letterSpacing: -1.4,
+    letterSpacing: -1.7,
   },
   heroMetrics: {
     flexDirection: "row",
@@ -411,14 +415,14 @@ const styles = StyleSheet.create({
 
   primaryButton: {
     alignItems: "center",
-    marginBottom: verticalScale(26),
+    marginBottom: verticalScale(28),
     paddingVertical: verticalScale(18),
-    borderRadius: scale(26),
-    shadowColor: colors.violet,
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
+    borderRadius: scale(28),
+    shadowColor: colors.primary,
+    shadowOpacity: 0.24,
+    shadowRadius: 22,
     shadowOffset: { width: 0, height: 12 },
-    elevation: 7,
+    elevation: 8,
   },
   primaryButtonText: {
     color: "#FFFFFF",
@@ -440,10 +444,10 @@ const styles = StyleSheet.create({
     paddingVertical: verticalScale(8),
   },
   shortcutTitle: {
+    marginBottom: verticalScale(3),
     color: colors.text,
     fontSize: scale(17),
     fontWeight: "900",
-    marginBottom: verticalScale(3),
   },
   shortcutText: {
     color: colors.textMuted,
@@ -466,9 +470,9 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: colors.text,
-    fontSize: scale(22),
+    fontSize: scale(23),
     fontWeight: "900",
-    letterSpacing: -0.5,
+    letterSpacing: -0.7,
   },
   viewAllText: {
     color: colors.textMuted,
@@ -520,7 +524,7 @@ const styles = StyleSheet.create({
   },
   historyMood: {
     flex: 1,
-    fontSize: scale(15),
+    fontSize: scale(16),
     fontWeight: "900",
   },
   historyDate: {
@@ -532,7 +536,7 @@ const styles = StyleSheet.create({
     marginTop: verticalScale(3),
     color: colors.textMuted,
     fontSize: scale(12),
-    fontWeight: "700",
+    fontWeight: "800",
   },
   historyNote: {
     marginTop: verticalScale(5),
@@ -541,13 +545,13 @@ const styles = StyleSheet.create({
     lineHeight: verticalScale(17),
     fontWeight: "600",
   },
+
   footer: {
     flexDirection: "row",
     justifyContent: "center",
     gap: scale(20),
     marginTop: verticalScale(40),
   },
-
   footerLink: {
     color: colors.textFaint,
     fontSize: scale(12),

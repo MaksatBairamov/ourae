@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
+import { scale, verticalScale } from "../constants/layout";
+import { colors } from "../constants/theme";
+
 import { initDatabase } from "../lib/db";
 
 SplashScreen.preventAutoHideAsync();
@@ -61,26 +64,27 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#050505",
+    backgroundColor: colors.bg,
   },
   errorScreen: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 24,
-    backgroundColor: "#050505",
+    paddingHorizontal: scale(24),
+    backgroundColor: colors.bg,
   },
   errorTitle: {
-    marginBottom: 8,
-    color: "#FFFFFF",
-    fontSize: 22,
-    fontWeight: "800",
+    marginBottom: verticalScale(8),
+    color: colors.text,
+    fontSize: scale(22),
+    fontWeight: "900",
     textAlign: "center",
   },
   errorText: {
-    color: "rgba(255,255,255,0.68)",
-    fontSize: 15,
-    lineHeight: 22,
+    color: colors.textMuted,
+    fontSize: scale(15),
+    lineHeight: verticalScale(22),
+    fontWeight: "700",
     textAlign: "center",
   },
 });
