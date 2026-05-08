@@ -1,4 +1,5 @@
 import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
@@ -11,6 +12,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import BackgroundGradient from "../components/BackgroundGradient";
+import GlowOrb from "../components/GlowOrb";
 import { isSmallScreen, scale, verticalScale } from "../constants/layout";
 import { colors, moodColors, shadows } from "../constants/theme";
 import { saveCheckIn } from "../lib/db";
@@ -54,21 +57,43 @@ const moodHints: Record<Mood, string> = {
   Happy: "light and open",
 };
 
+const moodMicrocopy: Record<Mood, string> = {
+  Calm: "Your system seems steady. Keep it simple.",
+  Okay: "Neutral is still useful data. Humanity survives another minute.",
+  Tired: "Low battery mode detected. No shame in that.",
+  Anxious: "Your nervous system is running in tabs-on-tabs mode.",
+  Sad: "Heavy does not mean broken. It means noticeable.",
+  Overwhelmed: "Too many signals at once. We slow it down.",
+  Motivated:
+    "Good. Use the momentum before your brain holds a committee meeting.",
+  Happy: "Nice. Rare creature spotted: emotional bandwidth.",
+};
+
 function ScaleSelector({
   label,
   value,
   onChange,
   color,
+  lowLabel,
+  highLabel,
 }: {
   label: string;
   value: number;
   onChange: (value: number) => void;
   color: string;
+  lowLabel: string;
+  highLabel: string;
 }) {
   return (
     <View style={styles.scaleBlock}>
       <View style={styles.scaleHeader}>
-        <Text style={styles.sectionTitle}>{label}</Text>
+        <View>
+          <Text style={styles.sectionTitle}>{label}</Text>
+          <Text style={styles.scaleSubtext}>
+            {lowLabel} to {highLabel}
+          </Text>
+        </View>
+
         <Text style={[styles.scaleValue, { color }]}>{value}/10</Text>
       </View>
 
@@ -89,7 +114,10 @@ function ScaleSelector({
               <View
                 style={[
                   styles.scaleSegment,
-                  isActive && { backgroundColor: color },
+                  isActive && {
+                    backgroundColor: color,
+                    shadowColor: color,
+                  },
                   isSelected && styles.scaleSegmentSelected,
                 ]}
               />
@@ -99,8 +127,8 @@ function ScaleSelector({
       </View>
 
       <View style={styles.scaleLabels}>
-        <Text style={styles.scaleLabelText}>low</Text>
-        <Text style={styles.scaleLabelText}>high</Text>
+        <Text style={styles.scaleLabelText}>{lowLabel}</Text>
+        <Text style={styles.scaleLabelText}>{highLabel}</Text>
       </View>
     </View>
   );
@@ -150,6 +178,19 @@ export default function CheckInScreen() {
       // Haptics may not be available on every platform.
     }
   }, []);
+
+  const handleScaleChange = useCallback(
+    async (nextValue: number, setter: (value: number) => void) => {
+      setter(nextValue);
+
+      try {
+        await Haptics.selectionAsync();
+      } catch {
+        // Haptics may not be available on every platform.
+      }
+    },
+    [],
+  );
 
   const handleContinue = useCallback(async () => {
     if (!selectedMood) {
@@ -213,23 +254,41 @@ export default function CheckInScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+      <BackgroundGradient />
+      <GlowOrb />
+
       <ScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={[styles.glow, { backgroundColor: activeMoodColor }]} />
+        <View
+          pointerEvents="none"
+          style={[styles.glow, { backgroundColor: activeMoodColor }]}
+        />
 
         <View style={styles.header}>
           <Text style={styles.eyebrow}>Quick check-in</Text>
           <Text style={styles.title}>What is your inner weather?</Text>
           <Text style={styles.subtitle}>
-            Choose the closest feeling. No perfect answer needed.
+            Choose the closest signal. No perfect answer needed.
           </Text>
         </View>
 
         <View style={styles.moodHero}>
-          <Text style={styles.moodHeroLabel}>Current mood</Text>
+          <View style={styles.moodHeroTop}>
+            <Text style={styles.moodHeroLabel}>Current mood</Text>
+
+            <View
+              style={[
+                styles.liveDot,
+                {
+                  backgroundColor: activeMoodColor,
+                  shadowColor: activeMoodColor,
+                },
+              ]}
+            />
+          </View>
 
           <Text
             style={[
@@ -242,6 +301,12 @@ export default function CheckInScreen() {
 
           <Text style={styles.moodHeroHint}>
             {selectedMood ? moodHints[selectedMood] : "tap a mood below"}
+          </Text>
+
+          <Text style={styles.moodHeroCopy}>
+            {selectedMood
+              ? moodMicrocopy[selectedMood]
+              : "Small input now, better pattern later. Annoyingly reasonable."}
           </Text>
         </View>
 
@@ -262,8 +327,14 @@ export default function CheckInScreen() {
                     onPress={() => handleSelectMood(mood)}
                     style={({ pressed }) => [
                       styles.moodItem,
-                      isActive && styles.moodItemActive,
-                      pressed && styles.moodItemPressed,
+                      isActive && [
+                        styles.moodItemActive,
+                        {
+                          borderColor: moodColor,
+                          shadowColor: moodColor,
+                        },
+                      ],
+                      pressed && styles.buttonPressed,
                     ]}
                   >
                     <View
@@ -271,7 +342,8 @@ export default function CheckInScreen() {
                         styles.moodOrb,
                         {
                           backgroundColor: moodColor,
-                          opacity: isActive ? 1 : 0.42,
+                          shadowColor: moodColor,
+                          opacity: isActive ? 1 : 0.48,
                         },
                       ]}
                     />
@@ -301,15 +373,19 @@ export default function CheckInScreen() {
           <ScaleSelector
             label="Energy"
             value={energy}
-            onChange={setEnergy}
+            onChange={(value) => handleScaleChange(value, setEnergy)}
             color={colors.green}
+            lowLabel="low"
+            highLabel="charged"
           />
 
           <ScaleSelector
             label="Anxiety"
             value={anxiety}
-            onChange={setAnxiety}
+            onChange={(value) => handleScaleChange(value, setAnxiety)}
             color={colors.danger}
+            lowLabel="quiet"
+            highLabel="loud"
           />
 
           <View style={styles.noteBlock}>
@@ -322,14 +398,21 @@ export default function CheckInScreen() {
               placeholderTextColor={colors.textFaint}
               multiline
               maxLength={500}
-              style={[styles.input, { borderColor: activeMoodColor }]}
+              style={[
+                styles.input,
+                {
+                  borderColor: selectedMood
+                    ? activeMoodColor
+                    : colors.borderStrong,
+                },
+              ]}
               textAlignVertical="top"
             />
 
             <Text style={styles.helperText}>
               {trimmedNote.length > 0
                 ? `${trimmedNote.length}/500 characters`
-                : "Optional, but useful for AI insight."}
+                : "Optional, but useful for a better summary."}
             </Text>
           </View>
 
@@ -337,12 +420,13 @@ export default function CheckInScreen() {
             <View style={styles.softAlert}>
               <Text style={styles.softAlertTitle}>Support mode is ready</Text>
               <Text style={styles.softAlertText}>
-                Your check-in suggests you may need something calmer and safer
-                right now. Ourae will guide you to support mode.
+                This check-in suggests you may need something calmer and safer
+                right now. Ourae will guide you into support mode.
               </Text>
             </View>
           ) : null}
         </View>
+
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={
@@ -351,19 +435,31 @@ export default function CheckInScreen() {
           disabled={isSubmitting}
           style={({ pressed }) => [
             styles.continueButton,
-            { backgroundColor: activeMoodColor },
-            !canContinue && styles.continueButtonDisabled,
+            {
+              shadowColor: activeMoodColor,
+            },
             pressed && canContinue && styles.continueButtonPressed,
+            !canContinue && styles.continueButtonDisabled,
           ]}
           onPress={handleContinue}
         >
-          <Text style={styles.continueButtonText}>
-            {isSubmitting
-              ? "Saving..."
-              : shouldGoToSupport
-                ? "Go to support mode"
-                : "Complete check-in"}
-          </Text>
+          <LinearGradient
+            colors={[
+              activeMoodColor,
+              shouldGoToSupport ? colors.dangerDeep : colors.violetDeep,
+            ]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.continueGradient}
+          >
+            <Text style={styles.continueButtonText}>
+              {isSubmitting
+                ? "Saving..."
+                : shouldGoToSupport
+                  ? "Go to support mode"
+                  : "Complete check-in"}
+            </Text>
+          </LinearGradient>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -375,26 +471,29 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
+
   container: {
     flexGrow: 1,
     paddingHorizontal: scale(24),
     paddingTop: verticalScale(30),
-    paddingBottom: verticalScale(32),
-    backgroundColor: colors.bg,
+    paddingBottom: verticalScale(34),
+    overflow: "visible",
   },
+
   glow: {
     position: "absolute",
-    top: verticalScale(56),
-    right: scale(-104),
-    width: scale(280),
-    height: scale(280),
-    borderRadius: scale(140),
-    opacity: 0.16,
+    top: verticalScale(60),
+    right: scale(-120),
+    width: scale(260),
+    height: scale(260),
+    borderRadius: scale(130),
+    opacity: 0.14,
   },
 
   header: {
-    marginBottom: verticalScale(26),
+    marginBottom: verticalScale(24),
   },
+
   eyebrow: {
     marginBottom: verticalScale(10),
     color: colors.cyan,
@@ -403,6 +502,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.7,
     textTransform: "uppercase",
   },
+
   title: {
     marginBottom: verticalScale(10),
     color: colors.text,
@@ -411,6 +511,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: -1.1,
   },
+
   subtitle: {
     maxWidth: scale(305),
     color: colors.textMuted,
@@ -421,7 +522,20 @@ const styles = StyleSheet.create({
 
   moodHero: {
     marginBottom: verticalScale(20),
+    padding: scale(20),
+    borderRadius: scale(32),
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.glass,
   },
+
+  moodHeroTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
   moodHeroLabel: {
     marginBottom: verticalScale(8),
     color: colors.textMuted,
@@ -430,69 +544,97 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     textTransform: "uppercase",
   },
+
+  liveDot: {
+    width: scale(10),
+    height: scale(10),
+    borderRadius: scale(5),
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 6,
+  },
+
   moodHeroValue: {
     color: colors.text,
-    fontSize: scale(46),
-    lineHeight: verticalScale(52),
+    fontSize: scale(43),
+    lineHeight: verticalScale(49),
     fontWeight: "900",
     letterSpacing: -1.5,
   },
+
   moodHeroHint: {
     marginTop: verticalScale(4),
     color: colors.textMuted,
     fontSize: scale(14),
+    fontWeight: "800",
+  },
+
+  moodHeroCopy: {
+    marginTop: verticalScale(12),
+    color: colors.textSoft,
+    fontSize: scale(13),
+    lineHeight: verticalScale(20),
     fontWeight: "700",
   },
 
   panel: {
     marginBottom: verticalScale(20),
     padding: scale(18),
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSoft,
     borderRadius: scale(32),
     borderWidth: 1,
     borderColor: colors.border,
-    ...shadows.soft,
   },
 
   moodBlock: {
     marginBottom: verticalScale(30),
   },
+
   moodGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: scale(10),
     marginTop: verticalScale(14),
   },
+
   moodItem: {
     width: "47%",
-    minHeight: verticalScale(52),
+    minHeight: verticalScale(54),
     flexDirection: "row",
     alignItems: "center",
     gap: scale(10),
-    paddingHorizontal: scale(11),
-    paddingVertical: verticalScale(9),
-    backgroundColor: colors.surfaceSoft,
-    borderRadius: scale(20),
+    paddingHorizontal: scale(12),
+    paddingVertical: verticalScale(10),
+    backgroundColor: colors.surfaceGlass,
+    borderRadius: scale(21),
     borderWidth: 1,
     borderColor: colors.border,
   },
+
   moodItemActive: {
     backgroundColor: colors.surfaceElevated,
-    borderColor: colors.borderStrong,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 5,
   },
-  moodItemPressed: {
-    opacity: 0.72,
+
+  buttonPressed: {
+    opacity: 0.76,
+    transform: [{ scale: 0.98 }],
   },
+
   moodOrb: {
     width: scale(23),
     height: scale(23),
     borderRadius: scale(11.5),
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 4,
   },
+
   moodText: {
     flex: 1,
     color: colors.textMuted,
@@ -511,45 +653,67 @@ const styles = StyleSheet.create({
   scaleBlock: {
     marginBottom: verticalScale(30),
   },
+
   scaleHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "baseline",
+    alignItems: "flex-start",
     marginBottom: verticalScale(12),
+    gap: scale(16),
   },
+
   sectionTitle: {
     color: colors.text,
     fontSize: scale(16),
     fontWeight: "900",
     letterSpacing: -0.2,
   },
+
+  scaleSubtext: {
+    marginTop: verticalScale(3),
+    color: colors.textFaint,
+    fontSize: scale(11),
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.9,
+  },
+
   scaleValue: {
     fontSize: scale(22),
     fontWeight: "900",
     letterSpacing: -0.4,
   },
+
   scaleTrack: {
     flexDirection: "row",
     gap: scale(6),
   },
+
   scaleTouch: {
     flex: 1,
     paddingVertical: verticalScale(8),
   },
+
   scaleSegment: {
     height: verticalScale(8),
     borderRadius: scale(999),
-    backgroundColor: "rgba(23,19,33,0.11)",
+    backgroundColor: "rgba(255,255,255,0.105)",
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 0 },
   },
+
   scaleSegmentSelected: {
     height: verticalScale(15),
     marginTop: verticalScale(-3.5),
   },
+
   scaleLabels: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: verticalScale(2),
   },
+
   scaleLabelText: {
     color: colors.textFaint,
     fontSize: scale(11),
@@ -561,18 +725,20 @@ const styles = StyleSheet.create({
   noteBlock: {
     marginTop: verticalScale(2),
   },
+
   input: {
     minHeight: verticalScale(132),
     marginTop: verticalScale(12),
     padding: scale(18),
     color: colors.text,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.surface,
     borderRadius: scale(26),
     borderWidth: 1,
     fontSize: scale(15),
     lineHeight: verticalScale(22),
     fontWeight: "600",
   },
+
   helperText: {
     marginTop: verticalScale(8),
     color: colors.textMuted,
@@ -587,14 +753,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.dangerSoft,
     borderRadius: scale(22),
     borderWidth: 1,
-    borderColor: "rgba(201,67,90,0.22)",
+    borderColor: "rgba(251,113,133,0.26)",
   },
+
   softAlertTitle: {
     marginBottom: verticalScale(6),
     color: colors.text,
     fontSize: scale(14),
     fontWeight: "900",
   },
+
   softAlertText: {
     color: colors.textSoft,
     fontSize: scale(13),
@@ -603,25 +771,33 @@ const styles = StyleSheet.create({
   },
 
   continueButton: {
+    borderRadius: scale(28),
+    shadowOpacity: 0.28,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 9,
+    overflow: "hidden",
+  },
+
+  continueGradient: {
     alignItems: "center",
     paddingVertical: verticalScale(18),
     borderRadius: scale(28),
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.42)",
-    shadowColor: colors.primary,
-    shadowOpacity: 0.24,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 8,
+    borderColor: "rgba(255,255,255,0.3)",
   },
+
   continueButtonPressed: {
     opacity: 0.86,
+    transform: [{ scale: 0.99 }],
   },
+
   continueButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.58,
   },
+
   continueButtonText: {
-    color: colors.textInverse,
+    color: colors.white,
     fontSize: scale(16),
     fontWeight: "900",
   },

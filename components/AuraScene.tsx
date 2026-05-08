@@ -1,7 +1,8 @@
-import { useEffect, useRef } from "react";
-import { Animated, StyleSheet, View } from "react-native";
+import { useEffect, useMemo, useRef } from "react";
+import { Animated, Easing, StyleSheet, View } from "react-native";
 
 import { scale, verticalScale } from "../constants/layout";
+import { colors } from "../constants/theme";
 
 type AuraSceneProps = {
   color: string;
@@ -9,24 +10,44 @@ type AuraSceneProps = {
   anxiety?: number;
 };
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
 export function AuraScene({ color, energy = 5, anxiety = 3 }: AuraSceneProps) {
   const pulse = useRef(new Animated.Value(1)).current;
   const drift = useRef(new Animated.Value(0)).current;
+  const rotate = useRef(new Animated.Value(0)).current;
+  const shimmer = useRef(new Animated.Value(0)).current;
 
-  const pulseDuration = anxiety >= 7 ? 1300 : 1900;
-  const coreSize = scale(82 + energy * 3);
+  const safeEnergy = clamp(energy, 1, 10);
+  const safeAnxiety = clamp(anxiety, 1, 10);
+
+  const config = useMemo(() => {
+    const isHighAnxiety = safeAnxiety >= 7;
+
+    return {
+      coreSize: scale(68 + safeEnergy * 2.8),
+      pulseTo: isHighAnxiety ? 1.13 : 1.07,
+      pulseDuration: isHighAnxiety ? 1150 : 1900,
+      driftDistance: isHighAnxiety ? verticalScale(4) : verticalScale(8),
+      particleOpacity: isHighAnxiety ? 0.72 : 0.5,
+    };
+  }, [safeEnergy, safeAnxiety]);
 
   useEffect(() => {
     const pulseAnimation = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
-          toValue: anxiety >= 7 ? 1.14 : 1.08,
-          duration: pulseDuration,
+          toValue: config.pulseTo,
+          duration: config.pulseDuration,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(pulse, {
           toValue: 1,
-          duration: pulseDuration,
+          duration: config.pulseDuration,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
       ]),
@@ -36,12 +57,40 @@ export function AuraScene({ color, energy = 5, anxiety = 3 }: AuraSceneProps) {
       Animated.sequence([
         Animated.timing(drift, {
           toValue: 1,
-          duration: 4200,
+          duration: 4600,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(drift, {
           toValue: 0,
-          duration: 4200,
+          duration: 4600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    const rotateAnimation = Animated.loop(
+      Animated.timing(rotate, {
+        toValue: 1,
+        duration: 26000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+
+    const shimmerAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(shimmer, {
+          toValue: 1,
+          duration: 2400,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(shimmer, {
+          toValue: 0,
+          duration: 2400,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
       ]),
@@ -49,20 +98,50 @@ export function AuraScene({ color, energy = 5, anxiety = 3 }: AuraSceneProps) {
 
     pulseAnimation.start();
     driftAnimation.start();
+    rotateAnimation.start();
+    shimmerAnimation.start();
 
     return () => {
       pulseAnimation.stop();
       driftAnimation.stop();
+      rotateAnimation.stop();
+      shimmerAnimation.stop();
     };
-  }, [anxiety, drift, pulse, pulseDuration]);
+  }, [config.pulseDuration, config.pulseTo, drift, pulse, rotate, shimmer]);
 
   const translateY = drift.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, -verticalScale(8)],
+    outputRange: [0, -config.driftDistance],
+  });
+
+  const spin = rotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+
+  const shimmerOpacity = shimmer.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.22, 0.56],
+  });
+
+  const shimmerScale = shimmer.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.96, 1.04],
   });
 
   return (
-    <View style={styles.wrap}>
+    <View style={styles.wrap} pointerEvents="none">
+      <Animated.View
+        style={[
+          styles.outerRing,
+          {
+            borderColor: color,
+            opacity: shimmerOpacity,
+            transform: [{ rotate: spin }, { scale: shimmerScale }],
+          },
+        ]}
+      />
+
       <Animated.View
         style={[
           styles.haloLarge,
@@ -75,7 +154,7 @@ export function AuraScene({ color, energy = 5, anxiety = 3 }: AuraSceneProps) {
 
       <Animated.View
         style={[
-          styles.haloSmall,
+          styles.haloMedium,
           {
             backgroundColor: color,
             transform: [{ scale: pulse }],
@@ -85,77 +164,191 @@ export function AuraScene({ color, energy = 5, anxiety = 3 }: AuraSceneProps) {
 
       <Animated.View
         style={[
-          styles.core,
+          styles.haloSmall,
           {
-            width: coreSize,
-            height: coreSize,
-            borderRadius: coreSize / 2,
             backgroundColor: color,
-            transform: [{ scale: pulse }, { translateY }],
+            transform: [{ scale: shimmerScale }],
           },
         ]}
       />
 
-      <View style={[styles.sparkOne, { backgroundColor: color }]} />
-      <View style={[styles.sparkTwo, { backgroundColor: color }]} />
-      <View style={[styles.sparkThree, { backgroundColor: color }]} />
+      <Animated.View
+        style={[
+          styles.core,
+          {
+            width: config.coreSize,
+            height: config.coreSize,
+            borderRadius: config.coreSize / 2,
+            backgroundColor: color,
+            shadowColor: color,
+            transform: [{ scale: pulse }, { translateY }],
+          },
+        ]}
+      >
+        <View style={styles.coreHighlight} />
+        <View style={styles.coreInnerShadow} />
+      </Animated.View>
+
+      <Animated.View
+        style={[
+          styles.particleLayer,
+          {
+            opacity: config.particleOpacity,
+            transform: [{ rotate: spin }],
+          },
+        ]}
+      >
+        <View
+          style={[styles.spark, styles.sparkOne, { backgroundColor: color }]}
+        />
+        <View
+          style={[styles.spark, styles.sparkTwo, { backgroundColor: color }]}
+        />
+        <View
+          style={[styles.spark, styles.sparkThree, { backgroundColor: color }]}
+        />
+        <View
+          style={[styles.spark, styles.sparkFour, { backgroundColor: color }]}
+        />
+        <View
+          style={[styles.spark, styles.sparkFive, { backgroundColor: color }]}
+        />
+      </Animated.View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: {
-    height: verticalScale(230),
+    width: "100%",
+    height: verticalScale(210),
     alignItems: "center",
     justifyContent: "center",
     overflow: "visible",
   },
+
+  outerRing: {
+    position: "absolute",
+    width: scale(198),
+    height: scale(198),
+    borderRadius: scale(99),
+    borderWidth: 1,
+    borderStyle: "dashed",
+  },
+
   haloLarge: {
     position: "absolute",
-    width: scale(220),
-    height: scale(220),
-    borderRadius: scale(110),
-    opacity: 0.14,
+    width: scale(190),
+    height: scale(190),
+    borderRadius: scale(95),
+    opacity: 0.13,
   },
+
+  haloMedium: {
+    position: "absolute",
+    width: scale(142),
+    height: scale(142),
+    borderRadius: scale(71),
+    opacity: 0.17,
+  },
+
   haloSmall: {
     position: "absolute",
-    width: scale(150),
-    height: scale(150),
-    borderRadius: scale(75),
-    opacity: 0.18,
+    width: scale(92),
+    height: scale(92),
+    borderRadius: scale(46),
+    opacity: 0.24,
   },
+
   core: {
-    opacity: 0.92,
-    shadowOpacity: 0.22,
+    alignItems: "center",
+    justifyContent: "center",
+    opacity: 0.95,
+    shadowOpacity: 0.34,
     shadowRadius: 24,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 7,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 8,
+    overflow: "hidden",
   },
-  sparkOne: {
+
+  coreHighlight: {
     position: "absolute",
-    top: verticalScale(46),
-    right: scale(92),
-    width: scale(7),
-    height: scale(7),
-    borderRadius: scale(3.5),
+    top: "14%",
+    left: "18%",
+    width: "38%",
+    height: "30%",
+    borderRadius: scale(999),
+    backgroundColor: "rgba(255,255,255,0.26)",
+    opacity: 0.7,
+  },
+
+  coreInnerShadow: {
+    position: "absolute",
+    right: "-14%",
+    bottom: "-12%",
+    width: "70%",
+    height: "70%",
+    borderRadius: scale(999),
+    backgroundColor: "rgba(0,0,0,0.2)",
+  },
+
+  particleLayer: {
+    position: "absolute",
+    width: scale(218),
+    height: scale(218),
+    borderRadius: scale(109),
+  },
+
+  spark: {
+    position: "absolute",
+    shadowColor: colors.white,
+    shadowOpacity: 0.3,
+    shadowRadius: 7,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 4,
+  },
+
+  sparkOne: {
+    top: verticalScale(30),
+    right: scale(58),
+    width: scale(6),
+    height: scale(6),
+    borderRadius: scale(3),
+  },
+
+  sparkTwo: {
+    left: scale(48),
+    bottom: verticalScale(58),
+    width: scale(4.5),
+    height: scale(4.5),
+    borderRadius: scale(2.25),
     opacity: 0.72,
   },
-  sparkTwo: {
-    position: "absolute",
-    left: scale(78),
-    bottom: verticalScale(58),
-    width: scale(5),
-    height: scale(5),
-    borderRadius: scale(2.5),
+
+  sparkThree: {
+    right: scale(38),
+    bottom: verticalScale(82),
+    width: scale(3.8),
+    height: scale(3.8),
+    borderRadius: scale(1.9),
+    opacity: 0.58,
+  },
+
+  sparkFour: {
+    top: verticalScale(82),
+    left: scale(34),
+    width: scale(3.5),
+    height: scale(3.5),
+    borderRadius: scale(1.75),
     opacity: 0.5,
   },
-  sparkThree: {
-    position: "absolute",
-    right: scale(68),
-    bottom: verticalScale(82),
-    width: scale(4),
-    height: scale(4),
-    borderRadius: scale(2),
-    opacity: 0.38,
+
+  sparkFive: {
+    bottom: verticalScale(30),
+    alignSelf: "center",
+    width: scale(3.8),
+    height: scale(3.8),
+    borderRadius: scale(1.9),
+    opacity: 0.42,
   },
 });

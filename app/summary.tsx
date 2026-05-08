@@ -1,4 +1,5 @@
 import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -11,8 +12,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import BackgroundGradient from "../components/BackgroundGradient";
+import GlowOrb from "../components/GlowOrb";
 import { scale, verticalScale } from "../constants/layout";
-import { colors, moodColors } from "../constants/theme";
+import { colors, moodColors, shadows } from "../constants/theme";
 import { getEmotionalInsight, type EmotionalInsightResult } from "../lib/ai";
 
 type Tone = {
@@ -120,6 +123,7 @@ export default function SummaryScreen() {
   const anxietyNumber = clampScore(anxietyRaw, 3);
 
   const moodColor = getMoodColor(mood);
+
   const tone = useMemo(
     () => getTone(energyNumber, anxietyNumber),
     [energyNumber, anxietyNumber],
@@ -302,6 +306,9 @@ export default function SummaryScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+      <BackgroundGradient />
+      <GlowOrb />
+
       <Animated.View
         style={[
           styles.animatedScreen,
@@ -319,7 +326,6 @@ export default function SummaryScreen() {
             pointerEvents="none"
             style={[styles.glowLarge, { backgroundColor: moodColor }]}
           />
-          <View pointerEvents="none" style={styles.glowWarm} />
           <View
             pointerEvents="none"
             style={[styles.glowSmall, { backgroundColor: moodColor }]}
@@ -330,7 +336,15 @@ export default function SummaryScreen() {
             <Text style={styles.title}>Check-in complete</Text>
           </View>
 
-          <View style={[styles.moodStage, { borderColor: moodColor }]}>
+          <View
+            style={[
+              styles.moodStage,
+              {
+                borderColor: moodColor,
+                shadowColor: moodColor,
+              },
+            ]}
+          >
             <View style={[styles.moodAura, { backgroundColor: moodColor }]} />
 
             <Text style={styles.stageLabel}>Current emotional signal</Text>
@@ -367,7 +381,18 @@ export default function SummaryScreen() {
           </View>
 
           <View style={styles.insightSection}>
-            <Text style={styles.insightKicker}>AI reflection</Text>
+            <View style={styles.insightHeader}>
+              <Text style={styles.insightKicker}>AI reflection</Text>
+              <View
+                style={[
+                  styles.aiDot,
+                  {
+                    backgroundColor: moodColor,
+                    shadowColor: moodColor,
+                  },
+                ]}
+              />
+            </View>
 
             {isLoadingInsight ? (
               <Animated.View style={{ opacity: skeletonOpacity }}>
@@ -393,8 +418,10 @@ export default function SummaryScreen() {
           </View>
 
           {note.length > 0 ? (
-            <View style={styles.noteSection}>
-              <Text style={styles.noteKicker}>What you wrote</Text>
+            <View style={[styles.noteSection, { borderLeftColor: moodColor }]}>
+              <Text style={[styles.noteKicker, { color: moodColor }]}>
+                What you wrote
+              </Text>
               <Text style={styles.noteText}>“{note}”</Text>
             </View>
           ) : null}
@@ -425,13 +452,22 @@ export default function SummaryScreen() {
             disabled={isNavigating}
             style={({ pressed }) => [
               styles.button,
-              { backgroundColor: moodColor },
+              {
+                shadowColor: moodColor,
+              },
               pressed && styles.buttonPressed,
               isNavigating && styles.buttonDisabled,
             ]}
             onPress={goHome}
           >
-            <Text style={styles.buttonText}>Back to home</Text>
+            <LinearGradient
+              colors={[moodColor, colors.violetDeep]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.buttonGradient}
+            >
+              <Text style={styles.buttonText}>Back to home</Text>
+            </LinearGradient>
           </Pressable>
 
           <Pressable
@@ -452,54 +488,49 @@ export default function SummaryScreen() {
     </SafeAreaView>
   );
 }
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.bg,
   },
+
   animatedScreen: {
     flex: 1,
   },
+
   container: {
     flexGrow: 1,
     paddingHorizontal: scale(24),
     paddingTop: verticalScale(30),
     paddingBottom: verticalScale(34),
-    backgroundColor: colors.bg,
+    overflow: "visible",
   },
 
   glowLarge: {
     position: "absolute",
     top: verticalScale(70),
     alignSelf: "center",
-    width: scale(320),
-    height: scale(320),
-    borderRadius: scale(160),
-    opacity: 0.15,
+    width: scale(280),
+    height: scale(280),
+    borderRadius: scale(140),
+    opacity: 0.12,
   },
-  glowWarm: {
-    position: "absolute",
-    top: verticalScale(14),
-    left: scale(-88),
-    width: scale(240),
-    height: scale(240),
-    borderRadius: scale(120),
-    backgroundColor: colors.warm,
-    opacity: 0.2,
-  },
+
   glowSmall: {
     position: "absolute",
     bottom: verticalScale(52),
     right: scale(-92),
-    width: scale(210),
-    height: scale(210),
-    borderRadius: scale(105),
-    opacity: 0.12,
+    width: scale(200),
+    height: scale(200),
+    borderRadius: scale(100),
+    opacity: 0.1,
   },
 
   header: {
     marginBottom: verticalScale(20),
   },
+
   kicker: {
     marginBottom: verticalScale(10),
     color: colors.textMuted,
@@ -509,6 +540,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     textTransform: "uppercase",
   },
+
   title: {
     color: colors.text,
     fontSize: scale(34),
@@ -521,29 +553,29 @@ const styles = StyleSheet.create({
   moodStage: {
     position: "relative",
     alignItems: "center",
-    marginBottom: verticalScale(26),
+    marginBottom: verticalScale(22),
     paddingHorizontal: scale(20),
     paddingTop: verticalScale(26),
     paddingBottom: verticalScale(20),
     backgroundColor: colors.surface,
     borderRadius: scale(34),
     borderWidth: 1,
-    borderColor: colors.border,
     overflow: "hidden",
-    shadowColor: colors.primary,
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 5,
+    shadowOpacity: 0.16,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 7,
   },
+
   moodAura: {
     position: "absolute",
-    top: verticalScale(-88),
-    width: scale(230),
-    height: scale(230),
-    borderRadius: scale(115),
-    opacity: 0.18,
+    top: verticalScale(-86),
+    width: scale(220),
+    height: scale(220),
+    borderRadius: scale(110),
+    opacity: 0.16,
   },
+
   stageLabel: {
     marginBottom: verticalScale(8),
     color: colors.textMuted,
@@ -552,13 +584,16 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     textTransform: "uppercase",
   },
+
   moodValue: {
     marginBottom: verticalScale(8),
-    fontSize: scale(52),
-    lineHeight: verticalScale(58),
+    fontSize: scale(50),
+    lineHeight: verticalScale(56),
     fontWeight: "900",
     letterSpacing: -1.8,
+    textAlign: "center",
   },
+
   subtitle: {
     maxWidth: scale(285),
     marginBottom: verticalScale(18),
@@ -581,11 +616,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+
   stateDot: {
     width: scale(7),
     height: scale(7),
     borderRadius: scale(3.5),
   },
+
   statePillText: {
     color: colors.textSoft,
     fontSize: scale(11),
@@ -601,21 +638,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: scale(18),
     paddingVertical: verticalScale(14),
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.surfaceSoft,
     borderRadius: scale(24),
     borderWidth: 1,
     borderColor: colors.border,
   },
+
   metricItem: {
     flex: 1,
     alignItems: "center",
   },
+
   metricValue: {
     color: colors.text,
     fontSize: scale(23),
     fontWeight: "900",
     letterSpacing: -0.4,
   },
+
   metricLabel: {
     marginTop: verticalScale(4),
     color: colors.textMuted,
@@ -624,6 +664,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: "uppercase",
   },
+
   metricDivider: {
     width: 1,
     height: verticalScale(34),
@@ -634,10 +675,13 @@ const styles = StyleSheet.create({
 
   patternCard: {
     marginBottom: verticalScale(22),
-    paddingLeft: scale(16),
-    borderLeftWidth: 2,
-    borderLeftColor: colors.borderStrong,
+    padding: scale(18),
+    borderRadius: scale(26),
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
+
   patternKicker: {
     marginBottom: verticalScale(8),
     color: colors.textFaint,
@@ -646,6 +690,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     textTransform: "uppercase",
   },
+
   patternText: {
     color: colors.textSoft,
     fontSize: scale(15),
@@ -655,15 +700,39 @@ const styles = StyleSheet.create({
 
   insightSection: {
     marginBottom: verticalScale(24),
+    padding: scale(18),
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: scale(26),
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.soft,
   },
-  insightKicker: {
+
+  insightHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: verticalScale(10),
+  },
+
+  insightKicker: {
     color: colors.cyan,
     fontSize: scale(11),
     fontWeight: "900",
     letterSpacing: 1.5,
     textTransform: "uppercase",
   },
+
+  aiDot: {
+    width: scale(8),
+    height: scale(8),
+    borderRadius: scale(4),
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 5,
+  },
+
   insightTitle: {
     marginBottom: verticalScale(10),
     color: colors.text,
@@ -672,6 +741,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: -0.5,
   },
+
   insightText: {
     color: colors.textSoft,
     fontSize: scale(15),
@@ -683,16 +753,16 @@ const styles = StyleSheet.create({
     marginBottom: verticalScale(24),
     paddingLeft: scale(16),
     borderLeftWidth: 2,
-    borderLeftColor: colors.violetHot,
   },
+
   noteKicker: {
     marginBottom: verticalScale(8),
-    color: colors.violetHot,
     fontSize: scale(11),
     fontWeight: "900",
     letterSpacing: 1.4,
     textTransform: "uppercase",
   },
+
   noteText: {
     color: colors.textSoft,
     fontSize: scale(15),
@@ -708,6 +778,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+
   actionKicker: {
     marginBottom: verticalScale(8),
     color: colors.textFaint,
@@ -716,6 +787,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.4,
     textTransform: "uppercase",
   },
+
   actionText: {
     color: colors.text,
     fontSize: scale(16),
@@ -731,6 +803,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+
   microActionLabel: {
     marginBottom: verticalScale(5),
     color: colors.textFaint,
@@ -739,6 +812,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     textTransform: "uppercase",
   },
+
   microActionText: {
     color: colors.text,
     fontSize: scale(14),
@@ -747,26 +821,34 @@ const styles = StyleSheet.create({
   },
 
   button: {
-    alignItems: "center",
     marginBottom: verticalScale(12),
+    borderRadius: scale(26),
+    overflow: "hidden",
+    shadowOpacity: 0.26,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 8,
+  },
+
+  buttonGradient: {
+    alignItems: "center",
     paddingVertical: verticalScale(17),
     borderRadius: scale(26),
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.56)",
-    shadowColor: colors.primary,
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 6,
+    borderColor: "rgba(255,255,255,0.3)",
   },
+
   buttonPressed: {
-    opacity: 0.76,
+    opacity: 0.78,
+    transform: [{ scale: 0.99 }],
   },
+
   buttonDisabled: {
     opacity: 0.55,
   },
+
   buttonText: {
-    color: colors.textInverse,
+    color: colors.white,
     fontSize: scale(16),
     fontWeight: "900",
   },
@@ -775,6 +857,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: verticalScale(16),
   },
+
   secondaryButtonText: {
     color: colors.textSoft,
     fontSize: scale(15),
@@ -785,16 +868,18 @@ const styles = StyleSheet.create({
     width: "68%",
     height: verticalScale(24),
     marginBottom: verticalScale(14),
-    backgroundColor: "rgba(23,19,33,0.13)",
+    backgroundColor: "rgba(255,255,255,0.12)",
     borderRadius: 999,
   },
+
   skeletonLine: {
     width: "100%",
     height: verticalScale(14),
     marginBottom: verticalScale(10),
-    backgroundColor: "rgba(23,19,33,0.09)",
+    backgroundColor: "rgba(255,255,255,0.08)",
     borderRadius: 999,
   },
+
   skeletonLineShort: {
     width: "76%",
   },

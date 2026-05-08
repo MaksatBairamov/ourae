@@ -1,11 +1,14 @@
 import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import BackgroundGradient from "../components/BackgroundGradient";
+import GlowOrb from "../components/GlowOrb";
 import { scale, verticalScale } from "../constants/layout";
-import { colors, moodColors } from "../constants/theme";
+import { colors, moodColors, shadows } from "../constants/theme";
 import { getRecentCheckIns, type StoredCheckIn } from "../lib/db";
 
 function formatDate(value: string) {
@@ -29,6 +32,26 @@ function getTrendLabel(avgEnergy: number, avgAnxiety: number) {
   if (avgEnergy <= 3) return "Low energy";
   if (avgEnergy >= 7 && avgAnxiety <= 4) return "Steady";
   return "Mixed";
+}
+
+function getPatternCopy(avgEnergy: number, avgAnxiety: number) {
+  if (avgAnxiety >= 8 && avgEnergy <= 3) {
+    return "Your recent signals show high tension with low energy. Regulation comes before productivity.";
+  }
+
+  if (avgAnxiety >= 7) {
+    return "Anxiety has been the loudest signal recently. Useful data, even if your nervous system is being dramatic.";
+  }
+
+  if (avgEnergy <= 3) {
+    return "Energy looks low across recent check-ins. Smaller actions will probably work better than heroic plans.";
+  }
+
+  if (avgEnergy >= 7 && avgAnxiety <= 4) {
+    return "Your recent rhythm looks relatively steady. Worth noticing what helped you get there.";
+  }
+
+  return "Your recent pattern is mixed. That is not failure, it is just a human operating system doing human nonsense.";
 }
 
 export default function HistoryScreen() {
@@ -98,6 +121,7 @@ export default function HistoryScreen() {
       avgAnxiety,
       mostFrequentMood,
       trend: getTrendLabel(avgEnergy, avgAnxiety),
+      patternCopy: getPatternCopy(avgEnergy, avgAnxiety),
     };
   }, [checkIns]);
 
@@ -135,11 +159,13 @@ export default function HistoryScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+      <BackgroundGradient />
+      <GlowOrb />
+
       <ScrollView
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
-        <View pointerEvents="none" style={styles.bgGlowWarm} />
         <View
           pointerEvents="none"
           style={[styles.bgGlowMood, { backgroundColor: mainColor }]}
@@ -164,29 +190,43 @@ export default function HistoryScreen() {
         ) : null}
 
         {!isLoading && stats ? (
-          <View style={styles.summaryBlock}>
-            <Text style={styles.summaryLabel}>Current pattern</Text>
-
-            <View style={styles.summaryTopRow}>
-              <Text style={[styles.summaryTrend, { color: mainColor }]}>
-                {stats.trend}
-              </Text>
-
+          <View
+            style={[
+              styles.summaryBlock,
+              {
+                borderColor: mainColor,
+                shadowColor: mainColor,
+              },
+            ]}
+          >
+            <View style={styles.summaryHeader}>
+              <Text style={styles.summaryLabel}>Current pattern</Text>
               <Text style={styles.totalText}>{stats.total} logs</Text>
             </View>
 
-            <View style={styles.summaryMetaRow}>
-              <Text style={styles.summaryMeta}>
-                Energy {stats.avgEnergy}/10
-              </Text>
-              <View style={styles.metaDot} />
-              <Text style={styles.summaryMeta}>
-                Anxiety {stats.avgAnxiety}/10
-              </Text>
-              <View style={styles.metaDot} />
-              <Text style={styles.summaryMeta} numberOfLines={1}>
-                Often {stats.mostFrequentMood}
-              </Text>
+            <Text style={[styles.summaryTrend, { color: mainColor }]}>
+              {stats.trend}
+            </Text>
+
+            <Text style={styles.summaryCopy}>{stats.patternCopy}</Text>
+
+            <View style={styles.summaryMetricGrid}>
+              <View style={styles.metricCard}>
+                <Text style={styles.metricValue}>{stats.avgEnergy}/10</Text>
+                <Text style={styles.metricLabel}>Energy</Text>
+              </View>
+
+              <View style={styles.metricCard}>
+                <Text style={styles.metricValue}>{stats.avgAnxiety}/10</Text>
+                <Text style={styles.metricLabel}>Anxiety</Text>
+              </View>
+
+              <View style={styles.metricCard}>
+                <Text style={styles.metricValue} numberOfLines={1}>
+                  {stats.mostFrequentMood}
+                </Text>
+                <Text style={styles.metricLabel}>Often</Text>
+              </View>
             </View>
           </View>
         ) : null}
@@ -204,12 +244,22 @@ export default function HistoryScreen() {
               disabled={isNavigating}
               style={({ pressed }) => [
                 styles.primaryButton,
+                {
+                  shadowColor: mainColor,
+                },
                 pressed && styles.buttonPressed,
                 isNavigating && styles.buttonDisabled,
               ]}
               onPress={handleStartCheckIn}
             >
-              <Text style={styles.primaryButtonText}>Start check-in</Text>
+              <LinearGradient
+                colors={[mainColor, colors.violetDeep]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.primaryButtonGradient}
+              >
+                <Text style={styles.primaryButtonText}>Start check-in</Text>
+              </LinearGradient>
             </Pressable>
           </View>
         ) : null}
@@ -223,6 +273,7 @@ export default function HistoryScreen() {
                 const mood = item.mood || "Unknown";
                 const moodColor = getMoodColor(mood);
                 const isLast = index === checkIns.length - 1;
+                const note = item.note?.trim();
 
                 return (
                   <View key={item.id} style={styles.timelineItem}>
@@ -230,7 +281,10 @@ export default function HistoryScreen() {
                       <View
                         style={[
                           styles.timelineDot,
-                          { backgroundColor: moodColor },
+                          {
+                            backgroundColor: moodColor,
+                            shadowColor: moodColor,
+                          },
                         ]}
                       />
 
@@ -251,13 +305,19 @@ export default function HistoryScreen() {
                         </Text>
                       </View>
 
-                      <Text style={styles.itemMeta}>
-                        Energy {item.energy}/10 · Anxiety {item.anxiety}/10
-                      </Text>
+                      <View style={styles.itemMetaRow}>
+                        <Text style={styles.itemMeta}>
+                          Energy {item.energy}/10
+                        </Text>
+                        <View style={styles.itemMetaDot} />
+                        <Text style={styles.itemMeta}>
+                          Anxiety {item.anxiety}/10
+                        </Text>
+                      </View>
 
-                      {item.note.trim().length > 0 ? (
+                      {note ? (
                         <Text style={styles.itemNote} numberOfLines={2}>
-                          “{item.note.trim()}”
+                          “{note}”
                         </Text>
                       ) : (
                         <Text style={styles.itemNoteMuted}>No note added.</Text>
@@ -292,36 +352,29 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
+
   container: {
     flexGrow: 1,
     paddingHorizontal: scale(24),
     paddingTop: verticalScale(30),
     paddingBottom: verticalScale(34),
-    backgroundColor: colors.bg,
+    overflow: "visible",
   },
-  bgGlowWarm: {
-    position: "absolute",
-    top: verticalScale(24),
-    left: scale(-104),
-    width: scale(250),
-    height: scale(250),
-    borderRadius: scale(125),
-    backgroundColor: colors.warm,
-    opacity: 0.22,
-  },
+
   bgGlowMood: {
     position: "absolute",
     top: verticalScale(120),
     right: scale(-118),
-    width: scale(270),
-    height: scale(270),
-    borderRadius: scale(135),
-    opacity: 0.16,
+    width: scale(260),
+    height: scale(260),
+    borderRadius: scale(130),
+    opacity: 0.13,
   },
 
   header: {
-    marginBottom: verticalScale(32),
+    marginBottom: verticalScale(28),
   },
+
   kicker: {
     marginBottom: verticalScale(10),
     color: colors.textMuted,
@@ -330,6 +383,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.7,
     textTransform: "uppercase",
   },
+
   title: {
     marginBottom: verticalScale(8),
     color: colors.text,
@@ -338,6 +392,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: -1.4,
   },
+
   subtitle: {
     maxWidth: scale(315),
     color: colors.textMuted,
@@ -347,57 +402,93 @@ const styles = StyleSheet.create({
   },
 
   summaryBlock: {
-    marginBottom: verticalScale(32),
+    marginBottom: verticalScale(30),
+    padding: scale(20),
+    backgroundColor: colors.surface,
+    borderRadius: scale(32),
+    borderWidth: 1,
+    shadowOpacity: 0.16,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 7,
   },
-  summaryLabel: {
+
+  summaryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: verticalScale(8),
+  },
+
+  summaryLabel: {
     color: colors.textMuted,
     fontSize: scale(11),
     fontWeight: "900",
     letterSpacing: 1.3,
     textTransform: "uppercase",
   },
-  summaryTopRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    justifyContent: "space-between",
-    gap: scale(12),
-    marginBottom: verticalScale(11),
-  },
-  summaryTrend: {
-    flex: 1,
-    fontSize: scale(44),
-    lineHeight: verticalScale(50),
-    fontWeight: "900",
-    letterSpacing: -1.7,
-  },
+
   totalText: {
     color: colors.textMuted,
     fontSize: scale(13),
     fontWeight: "900",
   },
-  summaryMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: scale(8),
+
+  summaryTrend: {
+    marginBottom: verticalScale(10),
+    fontSize: scale(42),
+    lineHeight: verticalScale(48),
+    fontWeight: "900",
+    letterSpacing: -1.7,
   },
-  summaryMeta: {
+
+  summaryCopy: {
+    marginBottom: verticalScale(18),
     color: colors.textSoft,
-    fontSize: scale(13),
-    fontWeight: "800",
+    fontSize: scale(14),
+    lineHeight: verticalScale(21),
+    fontWeight: "700",
   },
-  metaDot: {
-    width: scale(4),
-    height: scale(4),
-    borderRadius: scale(2),
-    backgroundColor: colors.textFaint,
-    opacity: 0.5,
+
+  summaryMetricGrid: {
+    flexDirection: "row",
+    gap: scale(10),
+  },
+
+  metricCard: {
+    flex: 1,
+    minHeight: verticalScale(74),
+    justifyContent: "center",
+    paddingHorizontal: scale(9),
+    paddingVertical: verticalScale(10),
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: scale(22),
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+
+  metricValue: {
+    color: colors.text,
+    fontSize: scale(17),
+    fontWeight: "900",
+    letterSpacing: -0.3,
+    textAlign: "center",
+  },
+
+  metricLabel: {
+    marginTop: verticalScale(4),
+    color: colors.textMuted,
+    fontSize: scale(10),
+    fontWeight: "900",
+    letterSpacing: 0.9,
+    textTransform: "uppercase",
+    textAlign: "center",
   },
 
   timelineBlock: {
     marginTop: verticalScale(2),
   },
+
   sectionTitle: {
     marginBottom: verticalScale(18),
     color: colors.text,
@@ -405,64 +496,100 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: -0.7,
   },
+
   timeline: {
     gap: verticalScale(0),
   },
+
   timelineItem: {
     flexDirection: "row",
     gap: scale(14),
   },
+
   timelineLeft: {
     alignItems: "center",
     width: scale(16),
   },
+
   timelineDot: {
     width: scale(11),
     height: scale(11),
-    marginTop: verticalScale(6),
+    marginTop: verticalScale(18),
     borderRadius: scale(5.5),
+    shadowOpacity: 0.75,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 5,
   },
+
   timelineLine: {
     flex: 1,
     width: 1,
     marginTop: verticalScale(7),
     marginBottom: verticalScale(8),
     backgroundColor: colors.borderStrong,
-    opacity: 0.55,
+    opacity: 0.65,
   },
+
   itemContent: {
     flex: 1,
-    paddingBottom: verticalScale(24),
+    marginBottom: verticalScale(14),
+    padding: scale(16),
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: scale(24),
+    borderWidth: 1,
+    borderColor: colors.border,
   },
+
   itemTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     gap: scale(12),
     marginBottom: verticalScale(4),
   },
+
   itemMood: {
     flex: 1,
     fontSize: scale(18),
     fontWeight: "900",
     letterSpacing: -0.2,
   },
+
   itemDate: {
     color: colors.textMuted,
     fontSize: scale(12),
     fontWeight: "800",
   },
+
+  itemMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: scale(7),
+    marginBottom: verticalScale(7),
+  },
+
   itemMeta: {
-    marginBottom: verticalScale(6),
     color: colors.textMuted,
-    fontSize: scale(13),
+    fontSize: scale(12),
     fontWeight: "800",
   },
+
+  itemMetaDot: {
+    width: scale(4),
+    height: scale(4),
+    borderRadius: scale(2),
+    backgroundColor: colors.textFaint,
+    opacity: 0.65,
+  },
+
   itemNote: {
     color: colors.textSoft,
     fontSize: scale(14),
     lineHeight: verticalScale(20),
     fontWeight: "600",
   },
+
   itemNoteMuted: {
     color: colors.textFaint,
     fontSize: scale(13),
@@ -473,7 +600,14 @@ const styles = StyleSheet.create({
 
   emptyBlock: {
     marginTop: verticalScale(12),
+    padding: scale(20),
+    backgroundColor: colors.surface,
+    borderRadius: scale(30),
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.soft,
   },
+
   emptyTitle: {
     marginBottom: verticalScale(8),
     color: colors.text,
@@ -481,6 +615,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: -0.6,
   },
+
   emptyText: {
     maxWidth: scale(300),
     marginBottom: verticalScale(20),
@@ -491,34 +626,45 @@ const styles = StyleSheet.create({
   },
 
   primaryButton: {
+    borderRadius: scale(26),
+    overflow: "hidden",
+    shadowOpacity: 0.24,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 8,
+  },
+
+  primaryButtonGradient: {
     alignItems: "center",
     paddingVertical: verticalScale(17),
-    backgroundColor: colors.primary,
     borderRadius: scale(26),
-    shadowColor: colors.primary,
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 6,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
   },
+
   primaryButtonText: {
-    color: colors.textInverse,
+    color: colors.white,
     fontSize: scale(15),
     fontWeight: "900",
   },
+
   secondaryButton: {
     alignItems: "center",
     marginTop: verticalScale(24),
     paddingVertical: verticalScale(16),
   },
+
   secondaryButtonText: {
     color: colors.textSoft,
     fontSize: scale(15),
     fontWeight: "900",
   },
+
   buttonPressed: {
-    opacity: 0.75,
+    opacity: 0.76,
+    transform: [{ scale: 0.99 }],
   },
+
   buttonDisabled: {
     opacity: 0.55,
   },

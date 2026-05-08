@@ -1,4 +1,5 @@
 import * as Haptics from "expo-haptics";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -12,12 +13,14 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import BackgroundGradient from "../components/BackgroundGradient";
+import GlowOrb from "../components/GlowOrb";
 import { scale, verticalScale } from "../constants/layout";
-import { colors } from "../constants/theme";
+import { colors, shadows } from "../constants/theme";
 
 const breathingSteps = [
-  { label: "Inhale", seconds: 4, scale: 1.18 },
-  { label: "Hold", seconds: 7, scale: 1.18 },
+  { label: "Inhale", seconds: 4, scale: 1.16 },
+  { label: "Hold", seconds: 7, scale: 1.16 },
   { label: "Exhale", seconds: 8, scale: 0.9 },
 ] as const;
 
@@ -65,14 +68,8 @@ export default function PanicScreen() {
   const currentBreath = breathingSteps[breathIndex];
 
   const breathingHint = useMemo(() => {
-    if (currentBreath.label === "Inhale") {
-      return "Slowly through your nose.";
-    }
-
-    if (currentBreath.label === "Hold") {
-      return "Gently. No force.";
-    }
-
+    if (currentBreath.label === "Inhale") return "Slowly through your nose.";
+    if (currentBreath.label === "Hold") return "Gently. No force.";
     return "Long and slow. Let go.";
   }, [currentBreath.label]);
 
@@ -152,6 +149,12 @@ export default function PanicScreen() {
 
   const handleCall = useCallback(async (phoneNumber: string) => {
     try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch {
+      // Haptics may not be available.
+    }
+
+    try {
       await Linking.openURL(`tel:${phoneNumber}`);
     } catch (error) {
       console.error("Could not open phone dialer:", error);
@@ -188,6 +191,9 @@ export default function PanicScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
+      <BackgroundGradient />
+      <GlowOrb />
+
       <Animated.View
         style={[
           styles.animatedRoot,
@@ -201,13 +207,15 @@ export default function PanicScreen() {
           contentContainerStyle={styles.container}
           showsVerticalScrollIndicator={false}
         >
-          <View pointerEvents="none" style={styles.glow} />
+          <View pointerEvents="none" style={styles.glowCyan} />
+          <View pointerEvents="none" style={styles.glowDanger} />
 
           <View style={styles.header}>
             <Text style={styles.kicker}>Support mode</Text>
             <Text style={styles.title}>Breathe first.</Text>
             <Text style={styles.subtitle}>
-              You do not need to solve everything now.
+              You do not need to solve everything now. Stay with the next
+              breath.
             </Text>
           </View>
 
@@ -229,22 +237,28 @@ export default function PanicScreen() {
                 },
               ]}
             >
-              <Text style={styles.breathLabel}>{currentBreath.label}</Text>
-              <Text style={styles.breathSeconds}>{currentBreath.seconds}s</Text>
+              <View style={styles.breathInner}>
+                <Text style={styles.breathLabel}>{currentBreath.label}</Text>
+                <Text style={styles.breathSeconds}>
+                  {currentBreath.seconds}s
+                </Text>
+              </View>
             </Animated.View>
 
             <Text style={styles.breathHint}>{breathingHint}</Text>
             <Text style={styles.tapHint}>tap to skip step</Text>
           </Pressable>
 
-          <View style={styles.section}>
+          <View style={styles.sectionCard}>
             <Text style={styles.sectionLabel}>Grounding</Text>
             <Text style={styles.sectionTitle}>Come back to the room</Text>
 
             <View style={styles.stepsList}>
               {groundingSteps.map((step, index) => (
                 <View key={step} style={styles.stepRow}>
-                  <Text style={styles.stepNumber}>{index + 1}</Text>
+                  <View style={styles.stepNumberBox}>
+                    <Text style={styles.stepNumber}>{index + 1}</Text>
+                  </View>
                   <Text style={styles.stepText}>{step}</Text>
                 </View>
               ))}
@@ -254,7 +268,8 @@ export default function PanicScreen() {
           <View style={styles.urgentBlock}>
             <Text style={styles.urgentTitle}>If you might hurt yourself</Text>
             <Text style={styles.urgentText}>
-              Call emergency support now or contact someone you trust.
+              Call emergency support now or contact someone you trust. You do
+              not have to handle this alone.
             </Text>
           </View>
 
@@ -294,7 +309,14 @@ export default function PanicScreen() {
               ]}
               onPress={goHome}
             >
-              <Text style={styles.primaryButtonText}>I feel safer</Text>
+              <LinearGradient
+                colors={[colors.cyan, colors.violetDeep]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.primaryButtonGradient}
+              >
+                <Text style={styles.primaryButtonText}>I feel safer</Text>
+              </LinearGradient>
             </Pressable>
 
             <Pressable
@@ -316,36 +338,51 @@ export default function PanicScreen() {
     </SafeAreaView>
   );
 }
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.bg,
   },
+
   animatedRoot: {
     flex: 1,
   },
+
   container: {
     flexGrow: 1,
     paddingHorizontal: scale(24),
     paddingTop: verticalScale(30),
     paddingBottom: verticalScale(32),
-    backgroundColor: colors.bg,
+    overflow: "visible",
   },
 
-  glow: {
+  glowCyan: {
     position: "absolute",
     top: verticalScale(54),
     right: scale(-90),
-    width: scale(270),
-    height: scale(270),
-    borderRadius: scale(135),
+    width: scale(250),
+    height: scale(250),
+    borderRadius: scale(125),
     backgroundColor: colors.cyan,
-    opacity: 0.16,
+    opacity: 0.13,
+  },
+
+  glowDanger: {
+    position: "absolute",
+    bottom: verticalScale(180),
+    left: scale(-120),
+    width: scale(230),
+    height: scale(230),
+    borderRadius: scale(115),
+    backgroundColor: colors.danger,
+    opacity: 0.09,
   },
 
   header: {
     marginBottom: verticalScale(28),
   },
+
   kicker: {
     marginBottom: verticalScale(10),
     color: colors.cyan,
@@ -354,6 +391,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.7,
     textTransform: "uppercase",
   },
+
   title: {
     marginBottom: verticalScale(8),
     color: colors.text,
@@ -362,8 +400,9 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: -1.3,
   },
+
   subtitle: {
-    maxWidth: scale(285),
+    maxWidth: scale(305),
     color: colors.textMuted,
     fontSize: scale(15),
     lineHeight: verticalScale(22),
@@ -374,45 +413,64 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: verticalScale(30),
-    paddingTop: verticalScale(18),
-    paddingBottom: verticalScale(20),
+    paddingTop: verticalScale(20),
+    paddingBottom: verticalScale(22),
+    backgroundColor: colors.surface,
+    borderRadius: scale(34),
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.glass,
   },
+
   cardPressed: {
     opacity: 0.78,
+    transform: [{ scale: 0.99 }],
   },
 
   breathRing: {
-    width: scale(182),
-    height: scale(182),
+    width: scale(178),
+    height: scale(178),
     alignItems: "center",
     justifyContent: "center",
     marginBottom: verticalScale(22),
     backgroundColor: colors.cyanSoft,
-    borderRadius: scale(91),
+    borderRadius: scale(89),
     borderWidth: 1,
-    borderColor: "rgba(16,166,184,0.34)",
-
+    borderColor: "rgba(34,211,238,0.38)",
     shadowColor: colors.cyan,
-    shadowOpacity: 0.16,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 6,
+    shadowOpacity: 0.24,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 8,
+  },
+
+  breathInner: {
+    width: scale(128),
+    height: scale(128),
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: scale(64),
+    backgroundColor: "rgba(255,255,255,0.06)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.12)",
   },
 
   breathLabel: {
     color: colors.text,
-    fontSize: scale(30),
-    lineHeight: verticalScale(35),
+    fontSize: scale(28),
+    lineHeight: verticalScale(33),
     fontWeight: "900",
     letterSpacing: -0.6,
   },
+
   breathSeconds: {
     marginTop: verticalScale(4),
     color: colors.cyan,
-    fontSize: scale(46),
-    lineHeight: verticalScale(51),
+    fontSize: scale(44),
+    lineHeight: verticalScale(49),
     fontWeight: "900",
   },
+
   breathHint: {
     color: colors.textSoft,
     fontSize: scale(16),
@@ -420,6 +478,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
   },
+
   tapHint: {
     marginTop: verticalScale(7),
     color: colors.textFaint,
@@ -429,9 +488,15 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
 
-  section: {
-    marginBottom: verticalScale(26),
+  sectionCard: {
+    marginBottom: verticalScale(22),
+    padding: scale(18),
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: scale(28),
+    borderWidth: 1,
+    borderColor: colors.border,
   },
+
   sectionLabel: {
     marginBottom: verticalScale(7),
     color: colors.textMuted,
@@ -440,6 +505,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     textTransform: "uppercase",
   },
+
   sectionTitle: {
     marginBottom: verticalScale(16),
     color: colors.text,
@@ -452,17 +518,30 @@ const styles = StyleSheet.create({
   stepsList: {
     gap: verticalScale(11),
   },
+
   stepRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: scale(13),
   },
+
+  stepNumberBox: {
+    width: scale(28),
+    height: scale(28),
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: scale(14),
+    backgroundColor: colors.cyanSoft,
+    borderWidth: 1,
+    borderColor: "rgba(34,211,238,0.22)",
+  },
+
   stepNumber: {
-    width: scale(24),
     color: colors.cyan,
-    fontSize: scale(14),
+    fontSize: scale(13),
     fontWeight: "900",
   },
+
   stepText: {
     flex: 1,
     color: colors.textSoft,
@@ -473,16 +552,20 @@ const styles = StyleSheet.create({
 
   urgentBlock: {
     marginBottom: verticalScale(18),
-    paddingLeft: scale(14),
-    borderLeftWidth: 2,
-    borderLeftColor: colors.danger,
+    padding: scale(16),
+    backgroundColor: colors.dangerSoft,
+    borderRadius: scale(24),
+    borderWidth: 1,
+    borderColor: "rgba(251,113,133,0.26)",
   },
+
   urgentTitle: {
     marginBottom: verticalScale(6),
     color: colors.text,
     fontSize: scale(15),
     fontWeight: "900",
   },
+
   urgentText: {
     color: colors.textSoft,
     fontSize: scale(13),
@@ -494,23 +577,29 @@ const styles = StyleSheet.create({
     marginBottom: verticalScale(24),
     gap: verticalScale(12),
   },
+
   supportRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: scale(14),
-    paddingBottom: verticalScale(12),
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    padding: scale(16),
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: scale(24),
+    borderWidth: 1,
+    borderColor: colors.border,
   },
+
   supportTextBlock: {
     flex: 1,
   },
+
   supportLabel: {
     color: colors.text,
     fontSize: scale(15),
     fontWeight: "900",
   },
+
   supportDescription: {
     marginTop: verticalScale(3),
     color: colors.textMuted,
@@ -518,6 +607,7 @@ const styles = StyleSheet.create({
     lineHeight: verticalScale(17),
     fontWeight: "700",
   },
+
   supportNumber: {
     color: colors.cyan,
     fontSize: scale(26),
@@ -528,23 +618,32 @@ const styles = StyleSheet.create({
   actions: {
     gap: verticalScale(12),
   },
+
   primaryButton: {
+    borderRadius: scale(26),
+    overflow: "hidden",
+    shadowColor: colors.cyan,
+    shadowOpacity: 0.24,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 8,
+  },
+
+  primaryButtonGradient: {
     alignItems: "center",
     paddingVertical: verticalScale(17),
-    backgroundColor: colors.cyan,
     borderRadius: scale(26),
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
 
-    shadowColor: colors.cyan,
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 6,
-  },
   primaryButtonPressed: {
-    opacity: 0.85,
+    opacity: 0.86,
+    transform: [{ scale: 0.99 }],
   },
+
   primaryButtonText: {
-    color: "#05060D",
+    color: colors.white,
     fontSize: scale(16),
     fontWeight: "900",
   },
@@ -553,9 +652,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: verticalScale(16),
   },
+
   secondaryButtonPressed: {
     opacity: 0.7,
   },
+
   secondaryButtonText: {
     color: colors.textSoft,
     fontSize: scale(15),
