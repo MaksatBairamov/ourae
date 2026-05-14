@@ -1,41 +1,54 @@
 # Ourae
 
-A lightweight emotional check-in app designed to help users understand their current state without complexity or pressure.
+Ourae is an AI-powered emotional wellness companion built with React Native and Expo.
+
+It helps users make short emotional check-ins, reflect on their current state, receive supportive AI-generated insights, and use grounding tools during moments of stress or emotional overwhelm.
 
 ---
 
 ## Overview
 
-Ourae provides a simple and calm space for self-reflection.
+Many people experience stress, anxiety, burnout, or emotional overload but do not always have access to private and supportive tools for self-reflection.
 
-Instead of long journaling or clinical tracking, the app focuses on quick emotional awareness:
-- What do I feel?
+Ourae provides a calm mobile-first space for emotional awareness and regulation.
+
+The app focuses on three simple questions:
+
+- What am I feeling?
 - How is my energy?
-- How anxious am I?
+- How anxious do I feel?
 
-The goal is not diagnosis, but clarity.
+The goal is not diagnosis or therapy.  
+The goal is clarity, reflection, and emotional regulation support.
 
 ---
 
-## Features
+## Core Features
 
-- Quick emotional check-in (mood, energy, anxiety)
-- Optional short notes
-- AI-generated reflections (non-diagnostic)
-- Panic support mode (breathing + grounding)
-- History view to observe patterns
-- Privacy-first approach (data stored locally)
+- Quick emotional check-in with mood, energy, anxiety, and optional notes
+- AI-generated emotional reflections using OpenRouter
+- Emotion summary screen with personalized next steps
+- Responsible AI safety layer for emotionally sensitive input
+- Guided panic support mode with breathing, grounding, and emergency contacts
+- History screen for reviewing recent check-ins
+- Emotion analytics with average energy, average anxiety, most frequent mood, and trend labels
+- Local-first data handling with SQLite on mobile
+- Web fallback storage with AsyncStorage
+- Clean, calm, mobile-first UI
+- TypeScript-based modular architecture
 
 ---
 
 ## Tech Stack
 
-- React Native (Expo)
+- React Native
+- Expo
+- Expo Router
 - TypeScript
-- SQLite (mobile)
-- AsyncStorage (web fallback)
-- OpenRouter API (AI layer)
-- Vercel (web deployment)
+- SQLite
+- AsyncStorage
+- OpenRouter API
+- Vercel
 
 ---
 
@@ -47,21 +60,64 @@ https://ourae.vercel.app
 
 ## How It Works
 
-1. User completes a short check-in
-2. The app processes the input
-3. A short AI reflection is generated
-4. Data is stored locally on the device
-5. Users can review past entries in the history screen
+1. The user completes a short emotional check-in.
+2. The app stores the check-in locally.
+3. The app generates a supportive AI reflection.
+4. Safety logic checks whether grounding or crisis support may be more appropriate.
+5. The user receives a summary, emotional insight, and a small next step.
+6. Past check-ins can be reviewed in the history screen with simple analytics.
 
 ---
 
 ## Privacy & Safety
 
-- All check-in data is stored locally on the user's device
-- No external database is used in this MVP
-- AI responses are supportive reflections, not medical advice
+Ourae is designed with a privacy-first approach.
 
-> Ourae is a reflection tool, not a diagnosis.
+- Check-in data is stored locally on the user's device.
+- No external database is used in this MVP.
+- AI responses are supportive reflections, not medical advice.
+- Sensitive emotional signals can trigger safety-oriented support flows.
+- Crisis-related input is redirected toward real-world support and emergency contacts.
+- The app avoids diagnostic language and does not replace professional care.
+
+> Ourae is a reflection and emotional support tool, not a diagnosis or therapy service.
+
+---
+
+## Responsible AI Approach
+
+Ourae uses AI carefully and intentionally.
+
+The AI layer is designed to:
+
+- Generate short, supportive reflections
+- Avoid medical or diagnostic claims
+- Suggest gentle next steps
+- Use fallback responses if the AI request fails
+- Prioritize grounding and safety in high-risk situations
+
+---
+
+## Project Scope
+
+Current MVP scope:
+
+- Mobile-first emotional check-in flow
+- AI reflection screen
+- Local storage
+- History and pattern overview
+- Panic support mode
+- Safety guardrails
+
+Potential future features:
+
+- Voice journaling
+- Weekly emotional summaries
+- Wearable integrations
+- Multi-language support
+- Personalized wellness routines
+- Gamification and streaks
+- Trusted contact support flow
 
 ---
 
@@ -70,3 +126,42 @@ https://ourae.vercel.app
 ```bash
 npm install
 npx expo start
+```
+
+For a clean Expo cache:
+
+```bash
+npx expo start -c
+```
+
+TypeScript check:
+
+```bash
+npx tsc --noEmit
+```
+
+---
+
+## Environment Variables
+
+Create a `.env` file in the project root:
+
+```env
+EXPO_PUBLIC_OPENROUTER_API_KEY=api_key_here
+EXPO_PUBLIC_OPENROUTER_MODEL=openai/gpt-4o-mini
+```
+
+Do not commit `.env` to GitHub.  
+Because apparently leaking API keys is still considered “bad”, who knew.
+
+---
+
+## Author
+
+Maksat Bairamov  
+Junior Software Developer  
+Powercoders Switzerland CH26-1
+
+Portfolio: https://maksatbairamov.ch
+
+GitHub: https://github.com/MaksatBairamov

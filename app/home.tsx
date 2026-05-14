@@ -1,6 +1,6 @@
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { useFocusEffect, useRouter } from "expo-router";
+import { type Href, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
@@ -19,18 +19,13 @@ import GlowOrb from "../components/GlowOrb";
 import { isSmallScreen, scale, verticalScale } from "../constants/layout";
 import { colors, moodColors } from "../constants/theme";
 import { getRecentCheckIns, type StoredCheckIn } from "../lib/db";
+import { calculateEmotionStats } from "../lib/insights";
 
+const ORBIT_LABEL = "Ourae";
+const RECENT_CHECK_INS_LIMIT = 4;
+const WEEKLY_REFLECTION_ROUTE = "/weekly-reflection" as Href;
 function getMoodColor(mood: string) {
   return moodColors[mood as keyof typeof moodColors] || colors.primary;
-}
-
-function getTrendLabel(avgEnergy?: number, avgAnxiety?: number) {
-  if (!avgEnergy || !avgAnxiety) return "No pattern yet";
-  if (avgAnxiety >= 8 && avgEnergy <= 3) return "High tension";
-  if (avgAnxiety >= 7) return "Activated";
-  if (avgEnergy <= 3) return "Low energy";
-  if (avgEnergy >= 7 && avgAnxiety <= 4) return "Steady";
-  return "Mixed";
 }
 
 function formatDate(value: string) {
@@ -44,8 +39,22 @@ function formatDate(value: string) {
   });
 }
 
+async function safeHaptic(type: "selection" | "lightImpact" = "selection") {
+  try {
+    if (type === "lightImpact") {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      return;
+    }
+
+    await Haptics.selectionAsync();
+  } catch {
+    // Haptics may not be available on every device/platform.
+  }
+}
+
 function OrbitingBrand({ color }: { color: string }) {
   const rotate = useRef(new Animated.Value(0)).current;
+  const letters = ORBIT_LABEL.split("");
 
   useEffect(() => {
     const animation = Animated.loop(
@@ -63,8 +72,8 @@ function OrbitingBrand({ color }: { color: string }) {
 
   return (
     <View pointerEvents="none" style={styles.orbitWrap}>
-      {"Ourae".split("").map((letter, index) => {
-        const baseAngle = (index / 5) * 360;
+      {letters.map((letter, index) => {
+        const baseAngle = (index / letters.length) * 360;
 
         const orbitRotate = rotate.interpolate({
           inputRange: [0, 1],
@@ -138,74 +147,42 @@ export default function HomeScreen() {
     };
   }, [contentY, fadeIn]);
 
-  const stats = useMemo(() => {
-    if (checkIns.length === 0) return null;
-
-    const total = checkIns.length;
-
-    const avgEnergy = Math.round(
-      checkIns.reduce((sum, item) => sum + item.energy, 0) / total,
-    );
-
-    const avgAnxiety = Math.round(
-      checkIns.reduce((sum, item) => sum + item.anxiety, 0) / total,
-    );
-
-    const moodCount: Record<string, number> = {};
-
-    checkIns.forEach((item) => {
-      const mood = item.mood || "Unknown";
-      moodCount[mood] = (moodCount[mood] || 0) + 1;
-    });
-
-    const mostFrequentMood =
-      Object.entries(moodCount).sort((a, b) => b[1] - a[1])[0]?.[0] ||
-      "Unknown";
-
-    return {
-      total,
-      avgEnergy,
-      avgAnxiety,
-      mostFrequentMood,
-      trend: getTrendLabel(avgEnergy, avgAnxiety),
-    };
-  }, [checkIns]);
+  const stats = useMemo(() => calculateEmotionStats(checkIns), [checkIns]);
 
   const lastMood = checkIns[0]?.mood || "No data yet";
   const moodColor = getMoodColor(lastMood);
-  const recentCheckIns = checkIns.slice(0, 4);
+  const recentCheckIns = checkIns.slice(0, RECENT_CHECK_INS_LIMIT);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
 
     try {
       await loadCheckIns();
-      await Haptics.selectionAsync();
-    } catch {
-      // Refresh should not crash the home screen.
+      await safeHaptic("selection");
     } finally {
       setIsRefreshing(false);
     }
   }, [loadCheckIns]);
 
   const handleCheckIn = useCallback(async () => {
-    try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch {
-      // Haptics may not be available.
-    }
-
+    await safeHaptic("lightImpact");
     router.push("/check-in");
   }, [router]);
 
   const handleOpenHistory = useCallback(async () => {
-    try {
-      await Haptics.selectionAsync();
-    } catch {
-      // Haptics may not be available.
-    }
-
+    await safeHaptic("selection");
     router.push("/history");
+  }, [router]);
+  const handleOpenWeeklyReflection = useCallback(async () => {
+    await safeHaptic("selection");
+    router.push(WEEKLY_REFLECTION_ROUTE);
+  }, [router]);
+  const handleOpenTerms = useCallback(() => {
+    router.push("/legal/terms");
+  }, [router]);
+
+  const handleOpenPrivacy = useCallback(() => {
+    router.push("/legal/privacy");
   }, [router]);
 
   return (
@@ -331,9 +308,7 @@ export default function HomeScreen() {
               accessibilityLabel="Start new check-in"
               style={({ pressed }) => [
                 styles.primaryButton,
-                {
-                  shadowColor: moodColor,
-                },
+                { shadowColor: moodColor },
                 pressed && styles.buttonPressed,
               ]}
               onPress={handleCheckIn}
@@ -351,6 +326,7 @@ export default function HomeScreen() {
             <View style={styles.shortcuts}>
               <Pressable
                 accessibilityRole="button"
+                accessibilityLabel="Open mood patterns history"
                 style={({ pressed }) => [
                   styles.shortcutCard,
                   pressed && styles.buttonPressed,
@@ -363,6 +339,20 @@ export default function HomeScreen() {
 
               <Pressable
                 accessibilityRole="button"
+                accessibilityLabel="Open weekly reflection"
+                style={({ pressed }) => [
+                  styles.shortcutCard,
+                  pressed && styles.buttonPressed,
+                ]}
+                onPress={handleOpenWeeklyReflection}
+              >
+                <Text style={styles.shortcutTitle}>Week</Text>
+                <Text style={styles.shortcutText}>Reflection</Text>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Start a quick emotional reset"
                 style={({ pressed }) => [
                   styles.shortcutCard,
                   pressed && styles.buttonPressed,
@@ -380,6 +370,7 @@ export default function HomeScreen() {
               {checkIns.length > 0 ? (
                 <Pressable
                   accessibilityRole="button"
+                  accessibilityLabel="View all check-ins"
                   onPress={handleOpenHistory}
                   hitSlop={10}
                 >
@@ -407,6 +398,7 @@ export default function HomeScreen() {
                     <Pressable
                       key={item.id}
                       accessibilityRole="button"
+                      accessibilityLabel={`Open history entry for ${mood}`}
                       style={({ pressed }) => [
                         styles.historyItem,
                         pressed && styles.historyItemPressed,
@@ -455,11 +447,19 @@ export default function HomeScreen() {
             )}
 
             <View style={styles.footer}>
-              <Pressable onPress={() => router.push("/legal/terms")}>
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel="Open terms and conditions"
+                onPress={handleOpenTerms}
+              >
                 <Text style={styles.footerLink}>Terms</Text>
               </Pressable>
 
-              <Pressable onPress={() => router.push("/legal/privacy")}>
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel="Open privacy policy"
+                onPress={handleOpenPrivacy}
+              >
                 <Text style={styles.footerLink}>Privacy</Text>
               </Pressable>
             </View>

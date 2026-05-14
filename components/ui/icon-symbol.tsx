@@ -1,6 +1,5 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import { type SymbolViewProps, type SymbolWeight } from "expo-symbols";
-import { type ComponentProps } from "react";
+import { type SymbolWeight } from "expo-symbols";
 import {
   type OpaqueColorValue,
   type StyleProp,
@@ -12,10 +11,7 @@ const MAPPING = {
   "paperplane.fill": "send",
   "chevron.left.forwardslash.chevron.right": "code",
   "chevron.right": "chevron-right",
-} satisfies Record<
-  SymbolViewProps["name"],
-  ComponentProps<typeof MaterialIcons>["name"]
->;
+} as const;
 
 type IconSymbolName = keyof typeof MAPPING;
 

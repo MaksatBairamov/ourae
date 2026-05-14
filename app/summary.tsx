@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { detectSafetyLevel, getSafetyMessage } from "../lib/safety";
 
 import BackgroundGradient from "../components/BackgroundGradient";
 import GlowOrb from "../components/GlowOrb";
@@ -142,6 +143,20 @@ export default function SummaryScreen() {
   const microAction = useMemo(
     () => getMicroAction(energyNumber, anxietyNumber),
     [energyNumber, anxietyNumber],
+  );
+  const safetyLevel = useMemo(
+    () =>
+      detectSafetyLevel({
+        note,
+        anxiety: anxietyNumber,
+        energy: energyNumber,
+      }),
+    [note, anxietyNumber, energyNumber],
+  );
+
+  const safetyMessage = useMemo(
+    () => getSafetyMessage(safetyLevel),
+    [safetyLevel],
   );
 
   const [aiInsight, setAiInsight] = useState<EmotionalInsightResult | null>(
@@ -375,6 +390,31 @@ export default function SummaryScreen() {
             </View>
           </View>
 
+          {safetyMessage ? (
+            <View style={styles.safetyCard}>
+              <Text style={styles.safetyKicker}>
+                {safetyLevel === "crisis"
+                  ? "Immediate support"
+                  : "Regulation first"}
+              </Text>
+              <Text style={styles.safetyTitle}>{safetyMessage.title}</Text>
+              <Text style={styles.safetyText}>{safetyMessage.text}</Text>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open grounding support"
+                style={({ pressed }) => [
+                  styles.safetyButton,
+                  pressed && styles.buttonPressed,
+                ]}
+                onPress={() => router.push("/panic")}
+              >
+                <Text style={styles.safetyButtonText}>
+                  {safetyMessage.action}
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
           <View style={styles.patternCard}>
             <Text style={styles.patternKicker}>What this may mean</Text>
             <Text style={styles.patternText}>{patternHint}</Text>
@@ -882,5 +922,52 @@ const styles = StyleSheet.create({
 
   skeletonLineShort: {
     width: "76%",
+  },
+  safetyCard: {
+    marginBottom: verticalScale(22),
+    padding: scale(18),
+    borderRadius: scale(26),
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.danger,
+  },
+
+  safetyKicker: {
+    marginBottom: verticalScale(8),
+    color: colors.danger,
+    fontSize: scale(11),
+    fontWeight: "900",
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+  },
+
+  safetyTitle: {
+    marginBottom: verticalScale(8),
+    color: colors.text,
+    fontSize: scale(21),
+    lineHeight: verticalScale(27),
+    fontWeight: "900",
+  },
+
+  safetyText: {
+    marginBottom: verticalScale(14),
+    color: colors.textSoft,
+    fontSize: scale(14),
+    lineHeight: verticalScale(21),
+    fontWeight: "700",
+  },
+
+  safetyButton: {
+    alignItems: "center",
+    paddingVertical: verticalScale(13),
+    paddingHorizontal: scale(14),
+    borderRadius: scale(18),
+    backgroundColor: colors.danger,
+  },
+
+  safetyButtonText: {
+    color: colors.white,
+    fontSize: scale(13),
+    fontWeight: "900",
   },
 });

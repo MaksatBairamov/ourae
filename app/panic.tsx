@@ -24,6 +24,24 @@ const breathingSteps = [
   { label: "Exhale", seconds: 8, scale: 0.9 },
 ] as const;
 
+const supportPhases = [
+  {
+    label: "Breathe",
+    title: "Slow the signal",
+    text: "Start with one breath cycle. No fixing, no analyzing, just reduce the intensity first.",
+  },
+  {
+    label: "Ground",
+    title: "Return to the room",
+    text: "Use your senses to reconnect with what is physically around you right now.",
+  },
+  {
+    label: "Reconnect",
+    title: "Do not stay alone with it",
+    text: "If the feeling is too heavy, contact someone safe or use emergency support.",
+  },
+] as const;
+
 const groundingSteps = [
   "5 things you can see",
   "4 things you can touch",
@@ -33,27 +51,36 @@ const groundingSteps = [
 ];
 
 const supportContacts = [
-  {
-    label: "Emergency",
-    value: "112",
-    description: "Immediate danger",
-  },
-  {
-    label: "Ambulance",
-    value: "144",
-    description: "Medical emergency",
-  },
-  {
-    label: "Emotional support",
-    value: "143",
-    description: "Dargebotene Hand",
-  },
+  { label: "Emergency", value: "112", description: "Immediate danger" },
+  { label: "Ambulance", value: "144", description: "Medical emergency" },
+  { label: "Emotional support", value: "143", description: "Dargebotene Hand" },
 ];
+
+async function safeHaptic(
+  type: "selection" | "medium" | "light" = "selection",
+) {
+  try {
+    if (type === "medium") {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      return;
+    }
+
+    if (type === "light") {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      return;
+    }
+
+    await Haptics.selectionAsync();
+  } catch {
+    // Haptics may not be available.
+  }
+}
 
 export default function PanicScreen() {
   const router = useRouter();
 
   const [breathIndex, setBreathIndex] = useState(0);
+  const [phaseIndex, setPhaseIndex] = useState(0);
   const [isNavigating, setIsNavigating] = useState(false);
 
   const animationRef = useRef<Animated.CompositeAnimation | null>(null);
@@ -66,12 +93,16 @@ export default function PanicScreen() {
   ).current;
 
   const currentBreath = breathingSteps[breathIndex];
+  const currentPhase = supportPhases[phaseIndex];
 
   const breathingHint = useMemo(() => {
     if (currentBreath.label === "Inhale") return "Slowly through your nose.";
     if (currentBreath.label === "Hold") return "Gently. No force.";
     return "Long and slow. Let go.";
   }, [currentBreath.label]);
+
+  const progressWidth =
+    `${((phaseIndex + 1) / supportPhases.length) * 100}%` as `${number}%`;
 
   useEffect(() => {
     Animated.parallel([
@@ -138,21 +169,24 @@ export default function PanicScreen() {
   ]);
 
   const nextBreathStep = useCallback(async () => {
-    try {
-      await Haptics.selectionAsync();
-    } catch {
-      // Haptics may not be available.
-    }
-
+    await safeHaptic();
     setBreathIndex((prev) => (prev + 1) % breathingSteps.length);
   }, []);
 
+  const goToNextPhase = useCallback(async () => {
+    await safeHaptic();
+
+    setPhaseIndex((prev) => Math.min(prev + 1, supportPhases.length - 1));
+  }, []);
+
+  const goToPreviousPhase = useCallback(async () => {
+    await safeHaptic();
+
+    setPhaseIndex((prev) => Math.max(prev - 1, 0));
+  }, []);
+
   const handleCall = useCallback(async (phoneNumber: string) => {
-    try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } catch {
-      // Haptics may not be available.
-    }
+    await safeHaptic("medium");
 
     try {
       await Linking.openURL(`tel:${phoneNumber}`);
@@ -165,12 +199,7 @@ export default function PanicScreen() {
     if (isNavigating) return;
 
     setIsNavigating(true);
-
-    try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch {
-      // Haptics may not be available.
-    }
+    await safeHaptic("light");
 
     router.replace("/home");
   }, [isNavigating, router]);
@@ -179,12 +208,7 @@ export default function PanicScreen() {
     if (isNavigating) return;
 
     setIsNavigating(true);
-
-    try {
-      await Haptics.selectionAsync();
-    } catch {
-      // Haptics may not be available.
-    }
+    await safeHaptic();
 
     router.replace("/check-in");
   }, [isNavigating, router]);
@@ -212,11 +236,58 @@ export default function PanicScreen() {
 
           <View style={styles.header}>
             <Text style={styles.kicker}>Support mode</Text>
-            <Text style={styles.title}>Breathe first.</Text>
+            <Text style={styles.title}>Stay with this moment.</Text>
             <Text style={styles.subtitle}>
-              You do not need to solve everything now. Stay with the next
-              breath.
+              Follow the steps slowly. The goal is not to solve your whole life
+              in one screen, thankfully.
             </Text>
+          </View>
+
+          <View style={styles.phaseCard}>
+            <View style={styles.phaseTopRow}>
+              <Text style={styles.phaseKicker}>
+                Step {phaseIndex + 1} of {supportPhases.length}
+              </Text>
+              <Text style={styles.phaseLabel}>{currentPhase.label}</Text>
+            </View>
+
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: progressWidth }]} />
+            </View>
+
+            <Text style={styles.phaseTitle}>{currentPhase.title}</Text>
+            <Text style={styles.phaseText}>{currentPhase.text}</Text>
+
+            <View style={styles.phaseActions}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Go to previous support step"
+                disabled={phaseIndex === 0}
+                style={({ pressed }) => [
+                  styles.phaseButton,
+                  phaseIndex === 0 && styles.phaseButtonDisabled,
+                  pressed && styles.cardPressed,
+                ]}
+                onPress={goToPreviousPhase}
+              >
+                <Text style={styles.phaseButtonText}>Previous</Text>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Go to next support step"
+                disabled={phaseIndex === supportPhases.length - 1}
+                style={({ pressed }) => [
+                  styles.phaseButtonPrimary,
+                  phaseIndex === supportPhases.length - 1 &&
+                    styles.phaseButtonDisabled,
+                  pressed && styles.cardPressed,
+                ]}
+                onPress={goToNextPhase}
+              >
+                <Text style={styles.phaseButtonPrimaryText}>Next step</Text>
+              </Pressable>
+            </View>
           </View>
 
           <Pressable
@@ -268,8 +339,8 @@ export default function PanicScreen() {
           <View style={styles.urgentBlock}>
             <Text style={styles.urgentTitle}>If you might hurt yourself</Text>
             <Text style={styles.urgentText}>
-              Call emergency support now or contact someone you trust. You do
-              not have to handle this alone.
+              Call emergency support now or contact someone you trust. This app
+              is not a replacement for real human help.
             </Text>
           </View>
 
@@ -380,7 +451,7 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    marginBottom: verticalScale(28),
+    marginBottom: verticalScale(22),
   },
 
   kicker: {
@@ -395,18 +466,123 @@ const styles = StyleSheet.create({
   title: {
     marginBottom: verticalScale(8),
     color: colors.text,
-    fontSize: scale(40),
-    lineHeight: verticalScale(45),
+    fontSize: scale(38),
+    lineHeight: verticalScale(43),
     fontWeight: "900",
     letterSpacing: -1.3,
   },
 
   subtitle: {
-    maxWidth: scale(305),
+    maxWidth: scale(315),
     color: colors.textMuted,
     fontSize: scale(15),
     lineHeight: verticalScale(22),
     fontWeight: "700",
+  },
+
+  phaseCard: {
+    marginBottom: verticalScale(22),
+    padding: scale(18),
+    backgroundColor: colors.surface,
+    borderRadius: scale(30),
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.soft,
+  },
+
+  phaseTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: scale(12),
+    marginBottom: verticalScale(12),
+  },
+
+  phaseKicker: {
+    color: colors.textMuted,
+    fontSize: scale(11),
+    fontWeight: "900",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+
+  phaseLabel: {
+    color: colors.cyan,
+    fontSize: scale(11),
+    fontWeight: "900",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+
+  progressTrack: {
+    height: verticalScale(7),
+    marginBottom: verticalScale(16),
+    backgroundColor: colors.surfaceSoft,
+    borderRadius: scale(999),
+    overflow: "hidden",
+  },
+
+  progressFill: {
+    height: "100%",
+    backgroundColor: colors.cyan,
+    borderRadius: scale(999),
+  },
+
+  phaseTitle: {
+    marginBottom: verticalScale(8),
+    color: colors.text,
+    fontSize: scale(23),
+    lineHeight: verticalScale(29),
+    fontWeight: "900",
+    letterSpacing: -0.4,
+  },
+
+  phaseText: {
+    marginBottom: verticalScale(16),
+    color: colors.textSoft,
+    fontSize: scale(14),
+    lineHeight: verticalScale(21),
+    fontWeight: "700",
+  },
+
+  phaseActions: {
+    flexDirection: "row",
+    gap: scale(10),
+  },
+
+  phaseButton: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: verticalScale(12),
+    borderRadius: scale(18),
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+
+  phaseButtonPrimary: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: verticalScale(12),
+    borderRadius: scale(18),
+    backgroundColor: colors.cyanSoft,
+    borderWidth: 1,
+    borderColor: "rgba(34,211,238,0.32)",
+  },
+
+  phaseButtonDisabled: {
+    opacity: 0.42,
+  },
+
+  phaseButtonText: {
+    color: colors.textSoft,
+    fontSize: scale(13),
+    fontWeight: "900",
+  },
+
+  phaseButtonPrimaryText: {
+    color: colors.cyan,
+    fontSize: scale(13),
+    fontWeight: "900",
   },
 
   breathCard: {

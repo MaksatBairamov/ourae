@@ -10,6 +10,7 @@ import GlowOrb from "../components/GlowOrb";
 import { scale, verticalScale } from "../constants/layout";
 import { colors, moodColors, shadows } from "../constants/theme";
 import { getRecentCheckIns, type StoredCheckIn } from "../lib/db";
+import { calculateEmotionStats } from "../lib/insights";
 
 function formatDate(value: string) {
   const date = new Date(value);
@@ -26,32 +27,12 @@ function getMoodColor(mood: string) {
   return moodColors[mood as keyof typeof moodColors] || colors.primary;
 }
 
-function getTrendLabel(avgEnergy: number, avgAnxiety: number) {
-  if (avgAnxiety >= 8 && avgEnergy <= 3) return "High tension";
-  if (avgAnxiety >= 7) return "Activated";
-  if (avgEnergy <= 3) return "Low energy";
-  if (avgEnergy >= 7 && avgAnxiety <= 4) return "Steady";
-  return "Mixed";
-}
-
-function getPatternCopy(avgEnergy: number, avgAnxiety: number) {
-  if (avgAnxiety >= 8 && avgEnergy <= 3) {
-    return "Your recent signals show high tension with low energy. Regulation comes before productivity.";
+async function safeHaptic() {
+  try {
+    await Haptics.selectionAsync();
+  } catch {
+    // Haptics may not be available.
   }
-
-  if (avgAnxiety >= 7) {
-    return "Anxiety has been the loudest signal recently. Useful data, even if your nervous system is being dramatic.";
-  }
-
-  if (avgEnergy <= 3) {
-    return "Energy looks low across recent check-ins. Smaller actions will probably work better than heroic plans.";
-  }
-
-  if (avgEnergy >= 7 && avgAnxiety <= 4) {
-    return "Your recent rhythm looks relatively steady. Worth noticing what helped you get there.";
-  }
-
-  return "Your recent pattern is mixed. That is not failure, it is just a human operating system doing human nonsense.";
 }
 
 export default function HistoryScreen() {
@@ -91,50 +72,17 @@ export default function HistoryScreen() {
     };
   }, []);
 
-  const stats = useMemo(() => {
-    if (checkIns.length === 0) return null;
+  const stats = useMemo(() => calculateEmotionStats(checkIns), [checkIns]);
 
-    const total = checkIns.length;
-
-    const avgEnergy = Math.round(
-      checkIns.reduce((sum, item) => sum + item.energy, 0) / total,
-    );
-
-    const avgAnxiety = Math.round(
-      checkIns.reduce((sum, item) => sum + item.anxiety, 0) / total,
-    );
-
-    const moodCount: Record<string, number> = {};
-
-    checkIns.forEach((item) => {
-      const mood = item.mood || "Unknown";
-      moodCount[mood] = (moodCount[mood] || 0) + 1;
-    });
-
-    const mostFrequentMood =
-      Object.entries(moodCount).sort((a, b) => b[1] - a[1])[0]?.[0] ||
-      "Unknown";
-
-    return {
-      total,
-      avgEnergy,
-      avgAnxiety,
-      mostFrequentMood,
-      trend: getTrendLabel(avgEnergy, avgAnxiety),
-      patternCopy: getPatternCopy(avgEnergy, avgAnxiety),
-    };
-  }, [checkIns]);
+  const mainColor = stats
+    ? getMoodColor(stats.mostFrequentMood)
+    : colors.primary;
 
   const handleStartCheckIn = useCallback(async () => {
     if (isNavigating) return;
 
     setIsNavigating(true);
-
-    try {
-      await Haptics.selectionAsync();
-    } catch {
-      // Haptics may not be available.
-    }
+    await safeHaptic();
 
     router.push("/check-in");
   }, [isNavigating, router]);
@@ -143,19 +91,10 @@ export default function HistoryScreen() {
     if (isNavigating) return;
 
     setIsNavigating(true);
-
-    try {
-      await Haptics.selectionAsync();
-    } catch {
-      // Haptics may not be available.
-    }
+    await safeHaptic();
 
     router.replace("/home");
   }, [isNavigating, router]);
-
-  const mainColor = stats
-    ? getMoodColor(stats.mostFrequentMood)
-    : colors.primary;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "bottom"]}>
@@ -228,6 +167,37 @@ export default function HistoryScreen() {
                 <Text style={styles.metricLabel}>Often</Text>
               </View>
             </View>
+
+            {stats.lastSeven.length > 1 ? (
+              <View style={styles.miniTrendBlock}>
+                <Text style={styles.miniTrendLabel}>Last 7 signals</Text>
+
+                <View style={styles.miniTrendRow}>
+                  {stats.lastSeven.map((item) => {
+                    const moodColor = getMoodColor(item.mood || "Unknown");
+                    const barHeight = verticalScale(18 + item.anxiety * 5);
+
+                    return (
+                      <View key={item.id} style={styles.miniTrendItem}>
+                        <View
+                          style={[
+                            styles.miniTrendBar,
+                            {
+                              height: barHeight,
+                              backgroundColor: moodColor,
+                            },
+                          ]}
+                        />
+                      </View>
+                    );
+                  })}
+                </View>
+
+                <Text style={styles.miniTrendHint}>
+                  Bar height reflects anxiety intensity.
+                </Text>
+              </View>
+            ) : null}
           </View>
         ) : null}
 
@@ -241,6 +211,7 @@ export default function HistoryScreen() {
 
             <Pressable
               accessibilityRole="button"
+              accessibilityLabel="Start first check-in"
               disabled={isNavigating}
               style={({ pressed }) => [
                 styles.primaryButton,
@@ -332,6 +303,7 @@ export default function HistoryScreen() {
 
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="Back to home"
           disabled={isNavigating}
           style={({ pressed }) => [
             styles.secondaryButton,
@@ -483,6 +455,50 @@ const styles = StyleSheet.create({
     letterSpacing: 0.9,
     textTransform: "uppercase",
     textAlign: "center",
+  },
+
+  miniTrendBlock: {
+    marginTop: verticalScale(18),
+    paddingTop: verticalScale(16),
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+
+  miniTrendLabel: {
+    marginBottom: verticalScale(12),
+    color: colors.textMuted,
+    fontSize: scale(11),
+    fontWeight: "900",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+
+  miniTrendRow: {
+    height: verticalScale(78),
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: scale(8),
+  },
+
+  miniTrendItem: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+
+  miniTrendBar: {
+    width: "100%",
+    maxWidth: scale(18),
+    minHeight: verticalScale(12),
+    borderRadius: scale(999),
+    opacity: 0.82,
+  },
+
+  miniTrendHint: {
+    marginTop: verticalScale(10),
+    color: colors.textFaint,
+    fontSize: scale(11),
+    fontWeight: "700",
   },
 
   timelineBlock: {

@@ -11,7 +11,9 @@ export type StoredCheckIn = CheckInData & {
 };
 
 export {
-  clearAllCheckIns, getRecentCheckIns, initDatabase,
+  clearAllCheckIns,
+  getRecentCheckIns,
+  initDatabase,
   saveCheckIn
 } from "./db.native";
 
