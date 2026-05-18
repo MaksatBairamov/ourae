@@ -218,24 +218,35 @@ export default function SummaryScreen() {
 
   useEffect(() => {
     let isMounted = true;
+    const controller = new AbortController();
 
     async function loadInsight() {
       setIsLoadingInsight(true);
 
       try {
-        const result = await getEmotionalInsight({
-          mood,
-          energy: energyNumber,
-          anxiety: anxietyNumber,
-          note,
-        });
+        const result = await getEmotionalInsight(
+          {
+            mood,
+            energy: energyNumber,
+            anxiety: anxietyNumber,
+            note,
+          },
+          controller.signal,
+        );
 
         if (!isMounted) return;
 
         setAiInsight(result);
       } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
+
         console.error("Failed to load AI insight:", error);
-        setAiInsight(tone);
+
+        if (isMounted) {
+          setAiInsight(tone);
+        }
       } finally {
         if (!isMounted) return;
 
@@ -274,6 +285,8 @@ export default function SummaryScreen() {
 
     return () => {
       isMounted = false;
+      controller.abort();
+
       insightOpacity.stopAnimation();
       insightTranslateY.stopAnimation();
       actionOpacity.stopAnimation();

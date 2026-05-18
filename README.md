@@ -36,6 +36,7 @@ The goal is clarity, reflection, and emotional regulation support.
 - Web fallback storage with AsyncStorage
 - Clean, calm, mobile-first UI
 - TypeScript-based modular architecture
+- Server-side AI requests to avoid exposing API keys in the frontend bundle
 
 ---
 
@@ -144,17 +145,24 @@ npx tsc --noEmit
 
 ## Environment Variables
 
-Create a `.env` file in the project root:
+Create a `.env` file in the project root for local server-side development:
 
 ```env
-EXPO_PUBLIC_OPENROUTER_API_KEY=api_key_here
-EXPO_PUBLIC_OPENROUTER_MODEL=openai/gpt-4o-mini
+OPENROUTER_API_KEY=your_api_key_here
+OPENROUTER_MODEL=openai/gpt-4o-mini
 ```
 
-Do not commit `.env` to GitHub.  
-Because apparently leaking API keys is still considered “bad”, who knew.
+For production, add the same variables in Vercel:
 
----
+```env
+OPENROUTER_API_KEY=your_api_key_here
+OPENROUTER_MODEL=openai/gpt-4o-mini
+```
+
+Do not use `EXPO_PUBLIC_` for secret API keys.  
+Secrets must stay server-side and should never be exposed in the frontend bundle.
+
+## Do not commit `.env` to GitHub.
 
 ## Author
 

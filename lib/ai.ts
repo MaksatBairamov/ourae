@@ -11,12 +11,11 @@ export type EmotionalInsightResult = {
   action: string;
 };
 
-const OPENROUTER_API_KEY = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY;
-const MODEL = process.env.EXPO_PUBLIC_OPENROUTER_MODEL || "openai/gpt-4o-mini";
-
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const REQUEST_TIMEOUT_MS = 12000;
 const MAX_NOTE_LENGTH = 700;
+
+function normalizeText(text: string) {
+  return text.trim().toLowerCase();
+}
 
 const crisisKeywords = [
   "die",
@@ -24,6 +23,8 @@ const crisisKeywords = [
   "kill myself",
   "suicide",
   "end my life",
+  "end it all",
+  "i want to end it all",
   "hurt myself",
   "self harm",
   "self-harm",
@@ -33,11 +34,10 @@ const crisisKeywords = [
   "i dont want to live",
   "i want to die",
   "i want to kill myself",
+  "can't go on",
+  "cant go on",
+  "no reason to live",
 ];
-
-function normalizeText(text: string) {
-  return text.trim().toLowerCase();
-}
 
 function containsCrisisText(note: string) {
   const normalized = normalizeText(note);
@@ -120,85 +120,9 @@ function safeString(value: unknown, fallback: string, maxLength: number) {
   return cleaned.slice(0, maxLength);
 }
 
-function extractJson(content: string): EmotionalInsightResult {
-  const match = content.match(/\{[\s\S]*\}/);
-
-  if (!match) {
-    throw new Error("AI response did not contain JSON.");
-  }
-
-  const parsed = JSON.parse(match[0]);
-
-  return {
-    title: safeString(parsed.title, "You created a moment of awareness.", 80),
-    insight: safeString(
-      parsed.insight,
-      "You noticed what is happening inside.",
-      260,
-    ),
-    action: safeString(parsed.action, "Take one small gentle step next.", 140),
-  };
-}
-
-async function fetchWithTimeout(
-  url: string,
-  options: RequestInit,
-  timeoutMs: number,
-) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    return await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
-function buildPrompt(input: EmotionalInsightInput) {
-  return `
-You are Ourae, a calm emotional wellness assistant.
-
-Analyze this check-in and return ONLY valid JSON.
-
-Rules:
-- Do not diagnose.
-- Do not claim to be a therapist.
-- Do not mention medical advice.
-- Keep the tone calm, short, and human.
-- Use simple language.
-- Give one tiny next step.
-- No markdown.
-- Avoid generic phrases like "feeling X but Y".
-- Sound natural, like a human reflection.
-- Do not overpromise.
-- Do not say everything will be okay.
-
-If the user mentions death, suicide, self-harm, or wanting to disappear:
-- do not give a normal reflection
-- respond with a calm safety-focused message
-- encourage contacting local emergency support or a trusted person immediately
-
-User check-in:
-Mood: ${input.mood}
-Energy: ${input.energy}/10
-Anxiety: ${input.anxiety}/10
-Note: "${input.note || "No note provided"}"
-
-Return this JSON shape:
-{
-  "title": "short human reflection, not generic",
-  "insight": "supportive insight, max 2 sentences",
-  "action": "one tiny next step, max 1 sentence"
-}
-`;
-}
-
 export async function getEmotionalInsight(
   rawInput: EmotionalInsightInput,
+  signal?: AbortSignal,
 ): Promise<EmotionalInsightResult> {
   const input = sanitizeInput(rawInput);
 
@@ -206,49 +130,32 @@ export async function getEmotionalInsight(
     return getFallbackInsight(input);
   }
 
-  if (!OPENROUTER_API_KEY) {
-    return getFallbackInsight(input);
-  }
-
   try {
-    const response = await fetchWithTimeout(
-      OPENROUTER_URL,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://ourae.local",
-          "X-Title": "Ourae",
-        },
-        body: JSON.stringify({
-          model: MODEL,
-          messages: [
-            {
-              role: "user",
-              content: buildPrompt(input),
-            },
-          ],
-          temperature: 0.35,
-          max_tokens: 220,
-        }),
+    const response = await fetch("/api/insight", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-      REQUEST_TIMEOUT_MS,
-    );
+      body: JSON.stringify(input),
+      signal,
+    });
 
     if (!response.ok) {
       return getFallbackInsight(input);
     }
 
     const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content;
 
-    if (typeof content !== "string") {
-      return getFallbackInsight(input);
+    return {
+      title: safeString(data.title, getFallbackInsight(input).title, 80),
+      insight: safeString(data.insight, getFallbackInsight(input).insight, 260),
+      action: safeString(data.action, getFallbackInsight(input).action, 140),
+    };
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw error;
     }
 
-    return extractJson(content);
-  } catch (error) {
     console.error("Failed to get emotional insight:", error);
     return getFallbackInsight(input);
   }
