@@ -164,6 +164,79 @@ Secrets must stay server-side and should never be exposed in the frontend bundle
 
 ## Do not commit `.env` to GitHub.
 
+---
+
+## Team Structure and Responsibilities
+
+| Role | Owner | Responsibilities |
+|------|-------|------------------|
+| **Product Owner / Lead Frontend** | Maksat Bairamov | Roadmap, priorities, UI consistency, feature approval, merge approval, architecture direction |
+| **Feature Developer** | Nizami | Feature implementation, smaller screens, helper logic, bug fixes |
+| **Frontend / UI Support** | Vitalii | Reusable components, styling, responsiveness, animations, UX polish |
+| **Backend / Logic / Testing** | Mykhailo | API routes, security improvements, testing, async handling, AI logic improvements |
+
+---
+
+## Development Workflow
+
+### GitHub Project Board
+
+Issues are tracked in the GitHub Project board with the following workflow:
+
+- **Backlog** — New issues, not yet prioritized
+- **Todo** — Prioritized, ready to start
+- **In Progress** — Currently being worked on
+- **Review** — Submitted for review, awaiting approval
+- **Done** — Completed and merged
+
+### Definition of Done
+
+Before marking an issue as complete, ensure:
+
+- ✅ Feature works correctly and meets acceptance criteria
+- ✅ No TypeScript errors (`npx tsc --noEmit`)
+- ✅ No console errors or warnings
+- ✅ Responsive UI on mobile and tablet sizes
+- ✅ Clean code structure (no dead code, meaningful variable names)
+- ✅ Tested locally before submitting PR
+- ✅ Short, descriptive PR description included
+
+### Code Quality Standards
+
+- All screens must maintain the calm, minimal aesthetic
+- All user-facing text must be emotionally supportive and non-diagnostic
+- All AI interactions must include safety fallbacks
+- All async operations must clean up properly on unmount
+- All new features must pass TypeScript strict mode
+
+---
+
+## Roadmap & Milestones
+
+### Milestone 1: MVP Stabilization
+Focus on security, core stability, and responsive design.
+- Move AI requests fully server-side
+- Improve async cleanup handling
+- Improve responsive mobile layouts
+- Refactor shared utilities
+- Improve project structure
+
+### Milestone 2: UX & AI Improvements
+Focus on polish, emotional analytics, and AI reliability.
+- Improve crisis intent detection
+- Improve AI reflection reliability
+- Create weekly emotional reflection system
+- Improve emotional trend calculations
+- Polish summary screen UX
+- Improve panic support experience
+
+### Milestone 3: Final Demo
+Focus on documentation and presentation.
+- Improve project documentation
+- Prepare final presentation and demo flow
+
+---
+
 ## Author
 
 Maksat Bairamov  
