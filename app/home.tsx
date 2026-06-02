@@ -23,6 +23,10 @@ import { calculateEmotionStats } from "../lib/insights";
 
 const ORBIT_LABEL = "Ourae";
 const RECENT_CHECK_INS_LIMIT = 4;
+const HISTORY_ROUTE = "/history" as Href;
+
+const CHECK_IN_ROUTE = "/check-in" as Href;
+const VISUAL_CHECK_IN_ROUTE = "/visual-check-in" as Href;
 const WEEKLY_REFLECTION_ROUTE = "/weekly-reflection" as Href;
 function getMoodColor(mood: string) {
   return moodColors[mood as keyof typeof moodColors] || colors.primary;
@@ -166,13 +170,19 @@ export default function HomeScreen() {
 
   const handleCheckIn = useCallback(async () => {
     await safeHaptic("lightImpact");
-    router.push("/check-in");
+    router.push(CHECK_IN_ROUTE);
+  }, [router]);
+
+  const handleVisualCheckIn = useCallback(async () => {
+    await safeHaptic("lightImpact");
+    router.push(VISUAL_CHECK_IN_ROUTE);
   }, [router]);
 
   const handleOpenHistory = useCallback(async () => {
     await safeHaptic("selection");
-    router.push("/history");
+    router.push(HISTORY_ROUTE);
   }, [router]);
+
   const handleOpenWeeklyReflection = useCallback(async () => {
     await safeHaptic("selection");
     router.push(WEEKLY_REFLECTION_ROUTE);
@@ -303,25 +313,42 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Start new check-in"
-              style={({ pressed }) => [
-                styles.primaryButton,
-                { shadowColor: moodColor },
-                pressed && styles.buttonPressed,
-              ]}
-              onPress={handleCheckIn}
-            >
-              <LinearGradient
-                colors={[moodColor, colors.violetDeep]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.primaryButtonGradient}
+            <View style={styles.actionButtons}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Start new check-in"
+                style={({ pressed }) => [
+                  styles.primaryButton,
+                  { shadowColor: moodColor },
+                  pressed && styles.buttonPressed,
+                ]}
+                onPress={handleCheckIn}
               >
-                <Text style={styles.primaryButtonText}>New check-in</Text>
-              </LinearGradient>
-            </Pressable>
+                <LinearGradient
+                  colors={[moodColor, colors.violetDeep]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.primaryButtonGradient}
+                >
+                  <Text style={styles.primaryButtonText}>New check-in</Text>
+                </LinearGradient>
+              </Pressable>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Start visual mood check-in"
+                style={({ pressed }) => [
+                  styles.visualButton,
+                  pressed && styles.buttonPressed,
+                ]}
+                onPress={handleVisualCheckIn}
+              >
+                <Text style={styles.visualButtonText}>Visual mood scan</Text>
+                <Text style={styles.visualButtonSubtext}>
+                  Camera-based emotional reflection
+                </Text>
+              </Pressable>
+            </View>
 
             <View style={styles.shortcuts}>
               <Pressable
@@ -420,15 +447,39 @@ export default function HomeScreen() {
                           <Text style={[styles.historyMood, { color }]}>
                             {mood}
                           </Text>
+                          <Text style={styles.historyMood}>
+                            {item.mood ?? "No mood selected"}
+                          </Text>
 
+                          <Text style={styles.historyMeta}>
+                            Energy {item.energy}/10 · Anxiety {item.anxiety}/10
+                          </Text>
+                          <Text style={styles.historyMeta}>
+                            Energy {item.energy}/10 · Anxiety {item.anxiety}/10
+                          </Text>
+
+                          {item.visualMood ? (
+                            <Text style={styles.historyVisualMeta}>
+                              Visual scan: {item.visualMood}
+                            </Text>
+                          ) : null}
+
+                          <Text style={styles.historyDate}>
+                            {formatDate(item.created_at)}
+                          </Text>
+                          <Text style={styles.historyDate}>
+                            {formatDate(item.created_at)}
+                          </Text>
                           <Text style={styles.historyDate}>
                             {formatDate(item.created_at)}
                           </Text>
                         </View>
 
-                        <Text style={styles.historyMeta}>
-                          Energy {item.energy}/10 · Anxiety {item.anxiety}/10
-                        </Text>
+                        {item.visualMood ? (
+                          <Text style={styles.historyVisualMeta}>
+                            Visual: {item.visualMood}
+                          </Text>
+                        ) : null}
 
                         {note ? (
                           <Text style={styles.historyNote} numberOfLines={1}>
@@ -681,9 +732,37 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
-
-  primaryButton: {
+  actionButtons: {
+    gap: verticalScale(12),
     marginBottom: verticalScale(14),
+  },
+
+  visualButton: {
+    paddingVertical: verticalScale(16),
+    paddingHorizontal: scale(18),
+    borderRadius: scale(26),
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+    shadowColor: colors.violetDeep,
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 5,
+  },
+  visualButtonText: {
+    color: colors.text,
+    fontSize: scale(15),
+    fontWeight: "900",
+  },
+
+  visualButtonSubtext: {
+    marginTop: verticalScale(4),
+    color: colors.textMuted,
+    fontSize: scale(12),
+    fontWeight: "700",
+  },
+  primaryButton: {
     borderRadius: scale(28),
     overflow: "hidden",
     shadowOpacity: 0.28,
@@ -842,7 +921,12 @@ const styles = StyleSheet.create({
     fontSize: scale(12),
     fontWeight: "800",
   },
-
+  historyVisualMeta: {
+    marginTop: verticalScale(3),
+    color: colors.cyan,
+    fontSize: scale(11),
+    fontWeight: "800",
+  },
   historyNote: {
     marginTop: verticalScale(5),
     color: colors.textSoft,

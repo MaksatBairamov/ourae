@@ -3,6 +3,11 @@ export type CheckInData = {
   energy: number;
   anxiety: number;
   note: string;
+
+  visualMood?: string | null;
+  visualStress?: number | null;
+  visualTiredness?: number | null;
+  visualConfidence?: number | null;
 };
 
 export type StoredCheckIn = CheckInData & {

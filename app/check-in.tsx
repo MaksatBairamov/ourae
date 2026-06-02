@@ -1,6 +1,6 @@
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import {
   Pressable,
@@ -134,15 +134,74 @@ function ScaleSelector({
   );
 }
 
+function toOptionalNumber(value?: string): number | null {
+  if (!value) return null;
+
+  const numberValue = Number(value);
+
+  if (!Number.isFinite(numberValue)) return null;
+
+  return numberValue;
+}
+
+function mapVisualMoodToMood(visualMood?: string): Mood | null {
+  if (!visualMood) return null;
+
+  const normalized = visualMood.toLowerCase();
+
+  if (normalized.includes("tired")) return "Tired";
+  if (normalized.includes("tense")) return "Anxious";
+  if (normalized.includes("stress")) return "Anxious";
+  if (normalized.includes("sad")) return "Sad";
+  if (normalized.includes("happy")) return "Happy";
+  if (normalized.includes("calm")) return "Calm";
+  if (normalized.includes("motivated")) return "Motivated";
+  if (normalized.includes("overwhelmed")) return "Overwhelmed";
+
+  return null;
+}
+
 export default function CheckInScreen() {
   const router = useRouter();
 
+  const params = useLocalSearchParams<{
+    visualMood?: string;
+    visualStress?: string;
+    visualTiredness?: string;
+    visualConfidence?: string;
+  }>();
+
+  const hasVisualMood = Boolean(params.visualMood);
+  const visualStress = useMemo(
+    () => toOptionalNumber(params.visualStress),
+    [params.visualStress],
+  );
+
+  const visualTiredness = useMemo(
+    () => toOptionalNumber(params.visualTiredness),
+    [params.visualTiredness],
+  );
+
+  const visualConfidence = useMemo(
+    () => toOptionalNumber(params.visualConfidence),
+    [params.visualConfidence],
+  );
   const [selectedMood, setSelectedMood] = useState<Mood | null>(null);
   const [energy, setEnergy] = useState(5);
   const [anxiety, setAnxiety] = useState(3);
   const [note, setNote] = useState("");
   const [showValidation, setShowValidation] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (selectedMood || !params.visualMood) return;
+
+    const suggestedMood = mapVisualMoodToMood(params.visualMood);
+
+    if (suggestedMood) {
+      setSelectedMood(suggestedMood);
+    }
+  }, [params.visualMood, selectedMood]);
 
   const trimmedNote = note.trim();
   const normalizedNote = trimmedNote.toLowerCase();
@@ -217,8 +276,16 @@ export default function CheckInScreen() {
         energy,
         anxiety,
         note: trimmedNote,
-      };
 
+        visualMood: params.visualMood ?? null,
+        visualStress: params.visualStress ? Number(params.visualStress) : null,
+        visualTiredness: params.visualTiredness
+          ? Number(params.visualTiredness)
+          : null,
+        visualConfidence: params.visualConfidence
+          ? Number(params.visualConfidence)
+          : null,
+      };
       await saveCheckIn(checkInPayload);
 
       try {
