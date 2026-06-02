@@ -1,7 +1,7 @@
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -313,6 +313,10 @@ export default function CheckInScreen() {
     anxiety,
     energy,
     isSubmitting,
+    params.visualConfidence,
+    params.visualMood,
+    params.visualStress,
+    params.visualTiredness,
     router,
     selectedMood,
     shouldGoToSupport,
@@ -376,7 +380,25 @@ export default function CheckInScreen() {
               : "Small input now, better pattern later. Annoyingly reasonable."}
           </Text>
         </View>
+        {hasVisualMood ? (
+          <View style={styles.visualInsightCard}>
+            <Text style={styles.visualInsightLabel}>
+              Visual scan suggestion
+            </Text>
 
+            <Text style={styles.visualInsightMood}>{params.visualMood}</Text>
+
+            <Text style={styles.visualInsightText}>
+              Stress {visualStress ?? "-"}% · Tiredness {visualTiredness ?? "-"}
+              % · Confidence {visualConfidence ?? "-"}%
+            </Text>
+
+            <Text style={styles.visualInsightNote}>
+              This is not a diagnosis. It is only a reflection aid. Please
+              choose how you actually feel.
+            </Text>
+          </View>
+        ) : null}
         <View style={styles.panel}>
           <View style={styles.moodBlock}>
             <Text style={styles.sectionTitle}>Mood</Text>
@@ -644,7 +666,47 @@ const styles = StyleSheet.create({
     lineHeight: verticalScale(20),
     fontWeight: "700",
   },
+  visualInsightCard: {
+    marginBottom: verticalScale(20),
+    padding: scale(18),
+    borderRadius: scale(28),
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.glass,
+  },
 
+  visualInsightLabel: {
+    marginBottom: verticalScale(8),
+    color: colors.cyan,
+    fontSize: scale(11),
+    fontWeight: "900",
+    letterSpacing: 1.3,
+    textTransform: "uppercase",
+  },
+
+  visualInsightMood: {
+    marginBottom: verticalScale(8),
+    color: colors.text,
+    fontSize: scale(24),
+    fontWeight: "900",
+    letterSpacing: -0.6,
+  },
+
+  visualInsightText: {
+    color: colors.textSoft,
+    fontSize: scale(13),
+    lineHeight: verticalScale(20),
+    fontWeight: "800",
+  },
+
+  visualInsightNote: {
+    marginTop: verticalScale(10),
+    color: colors.textMuted,
+    fontSize: scale(12),
+    lineHeight: verticalScale(18),
+    fontWeight: "700",
+  },
   panel: {
     marginBottom: verticalScale(20),
     padding: scale(18),
