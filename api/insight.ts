@@ -7,7 +7,7 @@ type InsightPayload = {
   note?: string;
 };
 
-const MODEL = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
+const MODEL = process.env.OPENROUTER_MODEL;
 
 function fallbackInsight(payload: InsightPayload) {
   if (payload.anxiety >= 8 && payload.energy <= 3) {
