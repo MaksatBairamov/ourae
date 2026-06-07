@@ -21,13 +21,13 @@ import { colors, moodColors } from "../constants/theme";
 import { getRecentCheckIns, type StoredCheckIn } from "../lib/db";
 import { calculateEmotionStats } from "../lib/insights";
 
-const ORBIT_LABEL = "Ourae";
 const RECENT_CHECK_INS_LIMIT = 4;
-const HISTORY_ROUTE = "/history" as Href;
 
+const HISTORY_ROUTE = "/history" as Href;
 const CHECK_IN_ROUTE = "/check-in" as Href;
 const VISUAL_CHECK_IN_ROUTE = "/visual-check-in" as Href;
 const WEEKLY_REFLECTION_ROUTE = "/weekly-reflection" as Href;
+
 function getMoodColor(mood: string) {
   return moodColors[mood as keyof typeof moodColors] || colors.primary;
 }
@@ -43,6 +43,14 @@ function formatDate(value: string) {
   });
 }
 
+function getVisualMood(item: StoredCheckIn) {
+  const value = (item as StoredCheckIn & { visualMood?: string }).visualMood;
+
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
 async function safeHaptic(type: "selection" | "lightImpact" = "selection") {
   try {
     if (type === "lightImpact") {
@@ -52,63 +60,8 @@ async function safeHaptic(type: "selection" | "lightImpact" = "selection") {
 
     await Haptics.selectionAsync();
   } catch {
-    // Haptics may not be available on every device/platform.
+    // Haptics may not be available.
   }
-}
-
-function OrbitingBrand({ color }: { color: string }) {
-  const rotate = useRef(new Animated.Value(0)).current;
-  const letters = ORBIT_LABEL.split("");
-
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.timing(rotate, {
-        toValue: 1,
-        duration: 24000,
-        useNativeDriver: true,
-      }),
-    );
-
-    animation.start();
-
-    return () => animation.stop();
-  }, [rotate]);
-
-  return (
-    <View pointerEvents="none" style={styles.orbitWrap}>
-      {letters.map((letter, index) => {
-        const baseAngle = (index / letters.length) * 360;
-
-        const orbitRotate = rotate.interpolate({
-          inputRange: [0, 1],
-          outputRange: [`${baseAngle}deg`, `${baseAngle + 360}deg`],
-        });
-
-        const letterRotate = rotate.interpolate({
-          inputRange: [0, 1],
-          outputRange: [`${-baseAngle}deg`, `${-(baseAngle + 360)}deg`],
-        });
-
-        return (
-          <Animated.View
-            key={`${letter}-${index}`}
-            style={[
-              styles.orbitLetterWrap,
-              {
-                transform: [
-                  { rotate: orbitRotate },
-                  { translateY: -scale(84) },
-                  { rotate: letterRotate },
-                ],
-              },
-            ]}
-          >
-            <Text style={[styles.orbitLetter, { color }]}>{letter}</Text>
-          </Animated.View>
-        );
-      })}
-    </View>
-  );
 }
 
 export default function HomeScreen() {
@@ -121,8 +74,13 @@ export default function HomeScreen() {
   const contentY = useRef(new Animated.Value(14)).current;
 
   const loadCheckIns = useCallback(async () => {
-    const data = await getRecentCheckIns();
-    setCheckIns(data);
+    try {
+      const data = await getRecentCheckIns();
+      setCheckIns(data);
+    } catch (error) {
+      console.error("Failed to load check-ins:", error);
+      setCheckIns([]);
+    }
   }, []);
 
   useFocusEffect(
@@ -187,6 +145,7 @@ export default function HomeScreen() {
     await safeHaptic("selection");
     router.push(WEEKLY_REFLECTION_ROUTE);
   }, [router]);
+
   const handleOpenTerms = useCallback(() => {
     router.push("/legal/terms");
   }, [router]);
@@ -236,7 +195,7 @@ export default function HomeScreen() {
               <Text style={styles.status}>Private emotional check-in</Text>
             </View>
 
-            <View style={styles.statusPill}>
+            <View style={styles.statusCluster}>
               <View
                 style={[
                   styles.statusDot,
@@ -246,16 +205,12 @@ export default function HomeScreen() {
                   },
                 ]}
               />
-              <Text style={styles.statusPillText}>
-                {stats ? "Active" : "New"}
-              </Text>
+              <Text style={styles.statusText}>{stats ? "Active" : "New"}</Text>
             </View>
           </View>
 
           <View style={styles.auraStage}>
             <View style={styles.auraWrap}>
-              <OrbitingBrand color={moodColor} />
-
               <AuraScene
                 color={moodColor}
                 energy={stats?.avgEnergy ?? 5}
@@ -265,18 +220,10 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.contentBlock}>
-            <View
-              style={[
-                styles.heroCard,
-                {
-                  borderColor: stats ? moodColor : colors.border,
-                  shadowColor: moodColor,
-                },
-              ]}
-            >
-              <View style={styles.heroTopRow}>
-                <Text style={styles.heroLabel}>Current trend</Text>
-                <Text style={styles.heroBadge}>
+            <View style={styles.heroSection}>
+              <View style={styles.heroHeader}>
+                <Text style={styles.sectionLabel}>Current trend</Text>
+                <Text style={styles.logCount}>
                   {stats ? `${stats.total} logs` : "No data"}
                 </Text>
               </View>
@@ -287,33 +234,26 @@ export default function HomeScreen() {
 
               <Text style={styles.heroSubtext}>
                 {stats
-                  ? `Most common mood: ${stats.mostFrequentMood}`
-                  : "Start with one short check-in to build your first pattern."}
+                  ? `Most common mood: ${stats.mostFrequentMood}. Keep tracking gently, not obsessively. Revolutionary concept, apparently.`
+                  : "Start with one short check-in to build your first emotional pattern."}
               </Text>
 
-              <View style={styles.heroMetrics}>
-                <View style={styles.metricPill}>
-                  <Text style={styles.metricValue}>
-                    {stats?.avgEnergy ?? "-"}
-                  </Text>
-                  <Text style={styles.metricLabel}>Energy</Text>
-                </View>
-
-                <View style={styles.metricPill}>
-                  <Text style={styles.metricValue}>
-                    {stats?.avgAnxiety ?? "-"}
-                  </Text>
-                  <Text style={styles.metricLabel}>Anxiety</Text>
-                </View>
-
-                <View style={styles.metricPill}>
-                  <Text style={styles.metricValue}>{stats?.total ?? 0}</Text>
-                  <Text style={styles.metricLabel}>Logs</Text>
-                </View>
+              <View style={styles.metricsLine}>
+                <Metric
+                  label="Energy"
+                  value={`${stats?.avgEnergy ?? "-"}/10`}
+                />
+                <View style={styles.metricDivider} />
+                <Metric
+                  label="Anxiety"
+                  value={`${stats?.avgAnxiety ?? "-"}/10`}
+                />
+                <View style={styles.metricDivider} />
+                <Metric label="Logs" value={`${stats?.total ?? 0}`} />
               </View>
             </View>
 
-            <View style={styles.actionButtons}>
+            <View style={styles.actionSection}>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Start new check-in"
@@ -336,59 +276,31 @@ export default function HomeScreen() {
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Start visual mood check-in"
+                accessibilityLabel="Start visual mood scan"
                 style={({ pressed }) => [
-                  styles.visualButton,
+                  styles.secondaryAction,
                   pressed && styles.buttonPressed,
                 ]}
                 onPress={handleVisualCheckIn}
               >
-                <Text style={styles.visualButtonText}>Visual mood scan</Text>
-                <Text style={styles.visualButtonSubtext}>
-                  Camera-based emotional reflection
+                <Text style={styles.secondaryActionTitle}>
+                  Visual mood scan
+                </Text>
+                <Text style={styles.secondaryActionText}>
+                  Camera-based reflection
                 </Text>
               </Pressable>
             </View>
 
-            <View style={styles.shortcuts}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Open mood patterns history"
-                style={({ pressed }) => [
-                  styles.shortcutCard,
-                  pressed && styles.buttonPressed,
-                ]}
-                onPress={handleOpenHistory}
-              >
-                <Text style={styles.shortcutTitle}>Patterns</Text>
-                <Text style={styles.shortcutText}>View full history</Text>
-              </Pressable>
-
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Open weekly reflection"
-                style={({ pressed }) => [
-                  styles.shortcutCard,
-                  pressed && styles.buttonPressed,
-                ]}
+            <View style={styles.linkRow}>
+              <MinimalLink label="Patterns" onPress={handleOpenHistory} />
+              <View style={styles.linkDivider} />
+              <MinimalLink
+                label="Weekly reflection"
                 onPress={handleOpenWeeklyReflection}
-              >
-                <Text style={styles.shortcutTitle}>Week</Text>
-                <Text style={styles.shortcutText}>Reflection</Text>
-              </Pressable>
-
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Start a quick emotional reset"
-                style={({ pressed }) => [
-                  styles.shortcutCard,
-                  pressed && styles.buttonPressed,
-                ]}
-                onPress={handleCheckIn}
-              >
-                <Text style={styles.shortcutTitle}>Reset</Text>
-                <Text style={styles.shortcutText}>2 min check-in</Text>
-              </Pressable>
+              />
+              <View style={styles.linkDivider} />
+              <MinimalLink label="Reset" onPress={handleCheckIn} />
             </View>
 
             <View style={styles.historyHeader}>
@@ -398,8 +310,8 @@ export default function HomeScreen() {
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="View all check-ins"
-                  onPress={handleOpenHistory}
                   hitSlop={10}
+                  onPress={handleOpenHistory}
                 >
                   <Text style={styles.viewAllText}>View all</Text>
                 </Pressable>
@@ -410,8 +322,8 @@ export default function HomeScreen() {
               <View style={styles.emptyBlock}>
                 <Text style={styles.emptyTitle}>No check-ins yet</Text>
                 <Text style={styles.emptyText}>
-                  Add your first check-in. The app cannot detect patterns from
-                  pure vibes, tragically.
+                  Add your first check-in and Ourae will start showing your
+                  emotional rhythm here.
                 </Text>
               </View>
             ) : (
@@ -420,6 +332,7 @@ export default function HomeScreen() {
                   const mood = item.mood || "Unknown";
                   const color = getMoodColor(mood);
                   const note = item.note?.trim();
+                  const visualMood = getVisualMood(item);
 
                   return (
                     <Pressable
@@ -434,50 +347,38 @@ export default function HomeScreen() {
                     >
                       <View
                         style={[
-                          styles.dot,
-                          {
-                            backgroundColor: color,
-                            shadowColor: color,
-                          },
+                          styles.historyAccent,
+                          { backgroundColor: color },
                         ]}
                       />
 
                       <View style={styles.historyContent}>
                         <View style={styles.historyTopRow}>
-                          <Text style={[styles.historyMood, { color }]}>
+                          <Text
+                            style={[styles.historyMood, { color }]}
+                            numberOfLines={1}
+                          >
                             {mood}
                           </Text>
-                          <Text style={styles.historyMood}>
-                            {item.mood ?? "No mood selected"}
-                          </Text>
 
-                          <Text style={styles.historyMeta}>
-                            Energy {item.energy}/10 · Anxiety {item.anxiety}/10
-                          </Text>
-                          <Text style={styles.historyMeta}>
-                            Energy {item.energy}/10 · Anxiety {item.anxiety}/10
-                          </Text>
-
-                          {item.visualMood ? (
-                            <Text style={styles.historyVisualMeta}>
-                              Visual scan: {item.visualMood}
-                            </Text>
-                          ) : null}
-
-                          <Text style={styles.historyDate}>
-                            {formatDate(item.created_at)}
-                          </Text>
-                          <Text style={styles.historyDate}>
-                            {formatDate(item.created_at)}
-                          </Text>
                           <Text style={styles.historyDate}>
                             {formatDate(item.created_at)}
                           </Text>
                         </View>
 
-                        {item.visualMood ? (
+                        <View style={styles.historyStatsRow}>
+                          <Text style={styles.historyMeta}>
+                            Energy {item.energy}/10
+                          </Text>
+
+                          <Text style={styles.historyMeta}>
+                            Anxiety {item.anxiety}/10
+                          </Text>
+                        </View>
+
+                        {visualMood ? (
                           <Text style={styles.historyVisualMeta}>
-                            Visual: {item.visualMood}
+                            Visual scan: {visualMood}
                           </Text>
                         ) : null}
 
@@ -521,6 +422,37 @@ export default function HomeScreen() {
   );
 }
 
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.metric}>
+      <Text style={styles.metricValue} numberOfLines={1}>
+        {value}
+      </Text>
+      <Text style={styles.metricLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function MinimalLink({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      hitSlop={10}
+      style={({ pressed }) => [pressed && styles.buttonPressed]}
+      onPress={onPress}
+    >
+      <Text style={styles.minimalLinkText}>{label}</Text>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -533,35 +465,38 @@ const styles = StyleSheet.create({
 
   container: {
     flexGrow: 1,
-    paddingTop: verticalScale(16),
+    width: "100%",
+    maxWidth: 480,
+    alignSelf: "center",
+    paddingHorizontal: scale(24),
+    paddingTop: verticalScale(18),
     paddingBottom: verticalScale(42),
     overflow: "visible",
   },
 
   bgGlow: {
     position: "absolute",
-    top: verticalScale(92),
-    right: scale(-120),
-    width: scale(260),
-    height: scale(260),
-    borderRadius: scale(130),
-    opacity: 0.13,
+    top: verticalScale(118),
+    right: scale(-130),
+    width: scale(280),
+    height: scale(280),
+    borderRadius: scale(140),
+    opacity: 0.12,
   },
 
   topBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: scale(24),
-    marginBottom: verticalScale(4),
+    marginBottom: verticalScale(10),
   },
 
   logo: {
     color: colors.text,
-    fontSize: scale(29),
-    lineHeight: verticalScale(34),
+    fontSize: scale(31),
+    lineHeight: verticalScale(36),
     fontWeight: "900",
-    letterSpacing: -1,
+    letterSpacing: -1.1,
   },
 
   status: {
@@ -571,197 +506,140 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  statusPill: {
+  statusCluster: {
     flexDirection: "row",
     alignItems: "center",
-    gap: scale(7),
-    paddingHorizontal: scale(12),
-    paddingVertical: verticalScale(8),
-    borderRadius: scale(999),
-    backgroundColor: colors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
+    gap: scale(8),
   },
 
   statusDot: {
-    width: scale(7),
-    height: scale(7),
-    borderRadius: scale(3.5),
+    width: scale(8),
+    height: scale(8),
+    borderRadius: scale(4),
     shadowOpacity: 0.8,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 0 },
     elevation: 5,
   },
 
-  statusPillText: {
-    color: colors.textSoft,
+  statusText: {
+    color: colors.textMuted,
     fontSize: scale(11),
     fontWeight: "900",
+    letterSpacing: 1.1,
     textTransform: "uppercase",
-    letterSpacing: 0.8,
   },
 
   auraStage: {
     width: "100%",
-    height: isSmallScreen ? verticalScale(245) : verticalScale(275),
+    height: isSmallScreen ? verticalScale(232) : verticalScale(260),
     alignItems: "center",
     justifyContent: "center",
     overflow: "visible",
-    marginBottom: verticalScale(-6),
+    marginBottom: verticalScale(2),
   },
 
   auraWrap: {
     position: "relative",
     width: "100%",
-    height: isSmallScreen ? verticalScale(245) : verticalScale(275),
+    height: isSmallScreen ? verticalScale(232) : verticalScale(260),
     alignItems: "center",
     justifyContent: "center",
     overflow: "visible",
-  },
-
-  orbitWrap: {
-    position: "absolute",
-    width: scale(194),
-    height: scale(194),
-    borderRadius: scale(97),
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 4,
-    overflow: "visible",
-  },
-
-  orbitLetterWrap: {
-    position: "absolute",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  orbitLetter: {
-    fontSize: scale(16),
-    fontWeight: "900",
-    letterSpacing: -0.35,
-    opacity: 0.74,
-    textShadowColor: "rgba(255,255,255,0.18)",
-    textShadowRadius: 10,
   },
 
   contentBlock: {
-    paddingHorizontal: scale(24),
+    width: "100%",
   },
 
-  heroCard: {
-    marginBottom: verticalScale(18),
-    padding: scale(20),
-    borderRadius: scale(32),
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    overflow: "hidden",
-    shadowOpacity: 0.14,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 7,
+  heroSection: {
+    marginBottom: verticalScale(26),
+    paddingBottom: verticalScale(24),
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
 
-  heroTopRow: {
+  heroHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: verticalScale(8),
-    gap: scale(12),
+    marginBottom: verticalScale(12),
   },
 
-  heroLabel: {
+  sectionLabel: {
     color: colors.textMuted,
     fontSize: scale(11),
     fontWeight: "900",
-    letterSpacing: 1.4,
+    letterSpacing: 1.5,
     textTransform: "uppercase",
   },
 
-  heroBadge: {
-    color: colors.textFaint,
-    fontSize: scale(11),
-    fontWeight: "900",
+  logCount: {
+    color: colors.textMuted,
+    fontSize: scale(12),
+    fontWeight: "800",
   },
 
   heroValue: {
-    marginBottom: verticalScale(9),
-    fontSize: isSmallScreen ? scale(36) : scale(42),
-    lineHeight: isSmallScreen ? verticalScale(42) : verticalScale(48),
+    marginBottom: verticalScale(10),
+    fontSize: isSmallScreen ? scale(39) : scale(45),
+    lineHeight: isSmallScreen ? verticalScale(44) : verticalScale(50),
     fontWeight: "900",
-    letterSpacing: -1.6,
+    letterSpacing: -1.8,
   },
 
   heroSubtext: {
-    maxWidth: scale(285),
-    marginBottom: verticalScale(18),
-    color: colors.textMuted,
-    fontSize: scale(13),
-    lineHeight: verticalScale(19),
+    maxWidth: scale(340),
+    marginBottom: verticalScale(24),
+    color: colors.textSoft,
+    fontSize: scale(15),
+    lineHeight: verticalScale(23),
     fontWeight: "700",
   },
 
-  heroMetrics: {
+  metricsLine: {
     flexDirection: "row",
-    gap: scale(10),
+    alignItems: "center",
+    paddingVertical: verticalScale(16),
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
   },
 
-  metricPill: {
+  metric: {
     flex: 1,
     alignItems: "center",
-    minHeight: verticalScale(70),
-    justifyContent: "center",
-    paddingVertical: verticalScale(10),
-    borderRadius: scale(22),
-    backgroundColor: colors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
 
   metricValue: {
     color: colors.text,
-    fontSize: scale(20),
+    fontSize: scale(18),
     fontWeight: "900",
+    letterSpacing: -0.4,
+    textAlign: "center",
   },
 
   metricLabel: {
-    marginTop: verticalScale(2),
+    marginTop: verticalScale(5),
     color: colors.textMuted,
     fontSize: scale(10),
-    fontWeight: "800",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-  },
-  actionButtons: {
-    gap: verticalScale(12),
-    marginBottom: verticalScale(14),
-  },
-
-  visualButton: {
-    paddingVertical: verticalScale(16),
-    paddingHorizontal: scale(18),
-    borderRadius: scale(26),
-    backgroundColor: colors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
-    shadowColor: colors.violetDeep,
-    shadowOpacity: 0.14,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 5,
-  },
-  visualButtonText: {
-    color: colors.text,
-    fontSize: scale(15),
     fontWeight: "900",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    textAlign: "center",
   },
 
-  visualButtonSubtext: {
-    marginTop: verticalScale(4),
-    color: colors.textMuted,
-    fontSize: scale(12),
-    fontWeight: "700",
+  metricDivider: {
+    width: 1,
+    height: verticalScale(30),
+    backgroundColor: colors.border,
   },
+
+  actionSection: {
+    gap: verticalScale(12),
+    marginBottom: verticalScale(22),
+  },
+
   primaryButton: {
     borderRadius: scale(28),
     overflow: "hidden",
@@ -785,53 +663,59 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 
-  buttonPressed: {
-    opacity: 0.78,
-    transform: [{ scale: 0.99 }],
+  secondaryAction: {
+    paddingVertical: verticalScale(15),
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
 
-  shortcuts: {
-    flexDirection: "row",
-    gap: scale(12),
-    marginBottom: verticalScale(28),
-  },
-
-  shortcutCard: {
-    flex: 1,
-    minHeight: verticalScale(82),
-    justifyContent: "center",
-    padding: scale(16),
-    borderRadius: scale(24),
-    backgroundColor: colors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-
-  shortcutTitle: {
-    marginBottom: verticalScale(4),
+  secondaryActionTitle: {
     color: colors.text,
-    fontSize: scale(16),
+    fontSize: scale(15),
     fontWeight: "900",
   },
 
-  shortcutText: {
+  secondaryActionText: {
+    marginTop: verticalScale(4),
     color: colors.textMuted,
     fontSize: scale(12),
     fontWeight: "700",
+  },
+
+  linkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: verticalScale(16),
+    marginBottom: verticalScale(26),
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+
+  minimalLinkText: {
+    color: colors.textSoft,
+    fontSize: scale(12),
+    fontWeight: "900",
+  },
+
+  linkDivider: {
+    width: 1,
+    height: verticalScale(18),
+    backgroundColor: colors.border,
   },
 
   historyHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: verticalScale(14),
+    marginBottom: verticalScale(18),
   },
 
   sectionTitle: {
     color: colors.text,
-    fontSize: scale(22),
+    fontSize: scale(24),
     fontWeight: "900",
-    letterSpacing: -0.7,
+    letterSpacing: -0.8,
   },
 
   viewAllText: {
@@ -841,10 +725,9 @@ const styles = StyleSheet.create({
   },
 
   emptyBlock: {
-    padding: scale(18),
-    borderRadius: scale(24),
-    backgroundColor: colors.surfaceSoft,
-    borderWidth: 1,
+    paddingVertical: verticalScale(18),
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
     borderColor: colors.border,
   },
 
@@ -863,83 +746,87 @@ const styles = StyleSheet.create({
   },
 
   historyList: {
-    gap: verticalScale(12),
+    gap: verticalScale(20),
   },
 
   historyItem: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: scale(12),
-    padding: scale(15),
-    borderRadius: scale(24),
-    backgroundColor: colors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: colors.border,
+    gap: scale(14),
+    paddingBottom: verticalScale(20),
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
 
   historyItemPressed: {
-    opacity: 0.78,
+    opacity: 0.72,
     transform: [{ scale: 0.99 }],
   },
 
-  dot: {
-    width: scale(10),
-    height: scale(10),
-    borderRadius: scale(5),
-    marginTop: verticalScale(7),
-    shadowOpacity: 0.75,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 5,
+  historyAccent: {
+    width: scale(4),
+    borderRadius: scale(999),
+    opacity: 0.95,
   },
 
   historyContent: {
     flex: 1,
+    minWidth: 0,
   },
 
   historyTopRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    gap: scale(10),
+    alignItems: "flex-start",
+    gap: scale(14),
+    marginBottom: verticalScale(7),
   },
 
   historyMood: {
     flex: 1,
-    fontSize: scale(16),
+    minWidth: 0,
+    fontSize: scale(20),
+    lineHeight: verticalScale(25),
     fontWeight: "900",
+    letterSpacing: -0.5,
   },
 
   historyDate: {
+    marginTop: verticalScale(3),
     color: colors.textMuted,
-    fontSize: scale(11),
-    fontWeight: "700",
+    fontSize: scale(12),
+    fontWeight: "800",
+  },
+
+  historyStatsRow: {
+    flexDirection: "row",
+    gap: scale(14),
+    marginBottom: verticalScale(6),
   },
 
   historyMeta: {
-    marginTop: verticalScale(3),
     color: colors.textMuted,
     fontSize: scale(12),
     fontWeight: "800",
   },
+
   historyVisualMeta: {
-    marginTop: verticalScale(3),
+    marginBottom: verticalScale(6),
     color: colors.cyan,
-    fontSize: scale(11),
-    fontWeight: "800",
-  },
-  historyNote: {
-    marginTop: verticalScale(5),
-    color: colors.textSoft,
     fontSize: scale(12),
-    lineHeight: verticalScale(17),
+    fontWeight: "900",
+  },
+
+  historyNote: {
+    color: colors.textSoft,
+    fontSize: scale(13),
+    lineHeight: verticalScale(19),
     fontWeight: "600",
   },
 
   historyNoteMuted: {
-    marginTop: verticalScale(5),
     color: colors.textFaint,
-    fontSize: scale(12),
-    lineHeight: verticalScale(17),
+    fontSize: scale(13),
+    lineHeight: verticalScale(19),
     fontWeight: "700",
     fontStyle: "italic",
   },
@@ -947,7 +834,7 @@ const styles = StyleSheet.create({
   footer: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: scale(20),
+    gap: scale(22),
     marginTop: verticalScale(38),
   },
 
@@ -955,5 +842,10 @@ const styles = StyleSheet.create({
     color: colors.textFaint,
     fontSize: scale(12),
     fontWeight: "700",
+  },
+
+  buttonPressed: {
+    opacity: 0.72,
+    transform: [{ scale: 0.99 }],
   },
 });

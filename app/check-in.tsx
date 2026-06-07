@@ -1,7 +1,7 @@
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -186,22 +186,16 @@ export default function CheckInScreen() {
     () => toOptionalNumber(params.visualConfidence),
     [params.visualConfidence],
   );
-  const [selectedMood, setSelectedMood] = useState<Mood | null>(null);
   const [energy, setEnergy] = useState(5);
   const [anxiety, setAnxiety] = useState(3);
   const [note, setNote] = useState("");
   const [showValidation, setShowValidation] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const initialMood = params.visualMood
+    ? mapVisualMoodToMood(params.visualMood)
+    : null;
 
-  useEffect(() => {
-    if (selectedMood || !params.visualMood) return;
-
-    const suggestedMood = mapVisualMoodToMood(params.visualMood);
-
-    if (suggestedMood) {
-      setSelectedMood(suggestedMood);
-    }
-  }, [params.visualMood, selectedMood]);
+  const [selectedMood, setSelectedMood] = useState<Mood | null>(initialMood);
 
   const trimmedNote = note.trim();
   const normalizedNote = trimmedNote.toLowerCase();

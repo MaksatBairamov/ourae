@@ -15,7 +15,7 @@ import { calculateEmotionStats } from "../lib/insights";
 function formatDate(value: string) {
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) return "recently";
+  if (Number.isNaN(date.getTime())) return "Recently";
 
   return date.toLocaleDateString(undefined, {
     month: "short",
@@ -25,6 +25,12 @@ function formatDate(value: string) {
 
 function getMoodColor(mood: string) {
   return moodColors[mood as keyof typeof moodColors] || colors.primary;
+}
+
+function getVisualMood(item: StoredCheckIn) {
+  return "visualMood" in item && typeof item.visualMood === "string"
+    ? item.visualMood
+    : null;
 }
 
 async function safeHaptic() {
@@ -107,83 +113,63 @@ export default function HistoryScreen() {
       >
         <View
           pointerEvents="none"
-          style={[styles.bgGlowMood, { backgroundColor: mainColor }]}
+          style={[styles.backgroundGlow, { backgroundColor: mainColor }]}
         />
 
         <View style={styles.header}>
           <Text style={styles.kicker}>Patterns</Text>
-          <Text style={styles.title}>Emotional traces</Text>
+          <Text style={styles.title}>Emotional history</Text>
           <Text style={styles.subtitle}>
-            Your recent check-ins, without turning one bad day into a life
-            thesis.
+            A calm overview of your recent check-ins and emotional direction.
           </Text>
         </View>
 
         {isLoading ? (
-          <View style={styles.emptyBlock}>
-            <Text style={styles.emptyTitle}>Loading patterns...</Text>
-            <Text style={styles.emptyText}>
-              Checking your recent emotional signals.
+          <View style={styles.stateBlock}>
+            <Text style={styles.stateTitle}>Loading history</Text>
+            <Text style={styles.stateText}>
+              Preparing your recent emotional signals.
             </Text>
           </View>
         ) : null}
 
         {!isLoading && stats ? (
-          <View
-            style={[
-              styles.summaryBlock,
-              {
-                borderColor: mainColor,
-                shadowColor: mainColor,
-              },
-            ]}
-          >
-            <View style={styles.summaryHeader}>
-              <Text style={styles.summaryLabel}>Current pattern</Text>
-              <Text style={styles.totalText}>{stats.total} logs</Text>
+          <View style={styles.overviewSection}>
+            <View style={styles.overviewHeader}>
+              <Text style={styles.sectionLabel}>Current pattern</Text>
+              <Text style={styles.logCount}>{stats.total} logs</Text>
             </View>
 
-            <Text style={[styles.summaryTrend, { color: mainColor }]}>
+            <Text style={[styles.trendTitle, { color: mainColor }]}>
               {stats.trend}
             </Text>
 
-            <Text style={styles.summaryCopy}>{stats.patternCopy}</Text>
+            <Text style={styles.trendCopy}>{stats.patternCopy}</Text>
 
-            <View style={styles.summaryMetricGrid}>
-              <View style={styles.metricCard}>
-                <Text style={styles.metricValue}>{stats.avgEnergy}/10</Text>
-                <Text style={styles.metricLabel}>Energy</Text>
-              </View>
-
-              <View style={styles.metricCard}>
-                <Text style={styles.metricValue}>{stats.avgAnxiety}/10</Text>
-                <Text style={styles.metricLabel}>Anxiety</Text>
-              </View>
-
-              <View style={styles.metricCard}>
-                <Text style={styles.metricValue} numberOfLines={1}>
-                  {stats.mostFrequentMood}
-                </Text>
-                <Text style={styles.metricLabel}>Often</Text>
-              </View>
+            <View style={styles.metricsLine}>
+              <Metric label="Energy" value={`${stats.avgEnergy}/10`} />
+              <View style={styles.metricDivider} />
+              <Metric label="Anxiety" value={`${stats.avgAnxiety}/10`} />
+              <View style={styles.metricDivider} />
+              <Metric label="Often" value={stats.mostFrequentMood} />
             </View>
 
             {stats.lastSeven.length > 1 ? (
-              <View style={styles.miniTrendBlock}>
-                <Text style={styles.miniTrendLabel}>Last 7 signals</Text>
+              <View style={styles.signalSection}>
+                <Text style={styles.sectionLabel}>Last 7 signals</Text>
 
-                <View style={styles.miniTrendRow}>
+                <View style={styles.signalRow}>
                   {stats.lastSeven.map((item) => {
                     const moodColor = getMoodColor(item.mood || "Unknown");
-                    const barHeight = verticalScale(18 + item.anxiety * 5);
+                    const height = verticalScale(18 + item.anxiety * 5);
 
                     return (
-                      <View key={item.id} style={styles.miniTrendItem}>
+                      <View key={item.id} style={styles.signalItem}>
                         <View
                           style={[
-                            styles.miniTrendBar,
+                            styles.signalBar,
                             {
-                              height: barHeight,
+                              height,
                               backgroundColor: moodColor,
                             },
                           ]}
@@ -193,8 +179,8 @@ export default function HistoryScreen() {
                   })}
                 </View>
 
-                <Text style={styles.miniTrendHint}>
-                  Bar height reflects anxiety intensity.
+                <Text style={styles.signalHint}>
+                  Higher bars indicate stronger anxiety intensity.
                 </Text>
               </View>
             ) : null}
@@ -202,68 +188,46 @@ export default function HistoryScreen() {
         ) : null}
 
         {!isLoading && checkIns.length === 0 ? (
-          <View style={styles.emptyBlock}>
-            <Text style={styles.emptyTitle}>No patterns yet</Text>
-            <Text style={styles.emptyText}>
+          <View style={styles.stateBlock}>
+            <Text style={styles.stateTitle}>No history yet</Text>
+            <Text style={styles.stateText}>
               Complete a few check-ins and Ourae will start showing your
               emotional rhythm here.
             </Text>
 
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Start first check-in"
+            <PrimaryButton
+              label="Start check-in"
+              color={mainColor}
               disabled={isNavigating}
-              style={({ pressed }) => [
-                styles.primaryButton,
-                {
-                  shadowColor: mainColor,
-                },
-                pressed && styles.buttonPressed,
-                isNavigating && styles.buttonDisabled,
-              ]}
               onPress={handleStartCheckIn}
-            >
-              <LinearGradient
-                colors={[mainColor, colors.violetDeep]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.primaryButtonGradient}
-              >
-                <Text style={styles.primaryButtonText}>Start check-in</Text>
-              </LinearGradient>
-            </Pressable>
+            />
           </View>
         ) : null}
 
         {!isLoading && checkIns.length > 0 ? (
-          <View style={styles.timelineBlock}>
-            <Text style={styles.sectionTitle}>Recent check-ins</Text>
+          <View style={styles.historySection}>
+            <Text style={styles.historyTitle}>Recent check-ins</Text>
 
-            <View style={styles.timeline}>
-              {checkIns.map((item, index) => {
+            <View style={styles.historyList}>
+              {checkIns.map((item) => {
                 const mood = item.mood || "Unknown";
                 const moodColor = getMoodColor(mood);
-                const isLast = index === checkIns.length - 1;
                 const note = item.note?.trim();
+                const visualMood = getVisualMood(item);
 
                 return (
-                  <View key={item.id} style={styles.timelineItem}>
-                    <View style={styles.timelineLeft}>
+                  <View key={item.id} style={styles.historyItem}>
+                    <View style={styles.itemAccentWrap}>
                       <View
                         style={[
-                          styles.timelineDot,
-                          {
-                            backgroundColor: moodColor,
-                            shadowColor: moodColor,
-                          },
+                          styles.itemAccent,
+                          { backgroundColor: moodColor },
                         ]}
                       />
-
-                      {!isLast ? <View style={styles.timelineLine} /> : null}
                     </View>
 
-                    <View style={styles.itemContent}>
-                      <View style={styles.itemTopRow}>
+                    <View style={styles.itemBody}>
+                      <View style={styles.itemHeader}>
                         <Text
                           style={[styles.itemMood, { color: moodColor }]}
                           numberOfLines={1}
@@ -276,22 +240,28 @@ export default function HistoryScreen() {
                         </Text>
                       </View>
 
-                      <View style={styles.itemMetaRow}>
-                        <Text style={styles.itemMeta}>
+                      <View style={styles.itemStats}>
+                        <Text style={styles.itemStat}>
                           Energy {item.energy}/10
                         </Text>
-                        <View style={styles.itemMetaDot} />
-                        <Text style={styles.itemMeta}>
+
+                        <Text style={styles.itemStat}>
                           Anxiety {item.anxiety}/10
                         </Text>
                       </View>
 
+                      {visualMood ? (
+                        <Text style={styles.visualText}>
+                          Visual scan: {visualMood}
+                        </Text>
+                      ) : null}
+
                       {note ? (
-                        <Text style={styles.itemNote} numberOfLines={2}>
+                        <Text style={styles.noteText} numberOfLines={2}>
                           “{note}”
                         </Text>
                       ) : (
-                        <Text style={styles.itemNoteMuted}>No note added.</Text>
+                        <Text style={styles.noteMuted}>No note added.</Text>
                       )}
                     </View>
                   </View>
@@ -306,16 +276,63 @@ export default function HistoryScreen() {
           accessibilityLabel="Back to home"
           disabled={isNavigating}
           style={({ pressed }) => [
-            styles.secondaryButton,
+            styles.backButton,
             pressed && styles.buttonPressed,
             isNavigating && styles.buttonDisabled,
           ]}
           onPress={handleBackHome}
         >
-          <Text style={styles.secondaryButtonText}>Back to home</Text>
+          <Text style={styles.backButtonText}>Back to home</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.metric}>
+      <Text style={styles.metricValue} numberOfLines={1}>
+        {value}
+      </Text>
+      <Text style={styles.metricLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function PrimaryButton({
+  label,
+  color,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  color: string;
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      disabled={disabled}
+      style={({ pressed }) => [
+        styles.primaryButton,
+        { shadowColor: color },
+        pressed && styles.buttonPressed,
+        disabled && styles.buttonDisabled,
+      ]}
+      onPress={onPress}
+    >
+      <LinearGradient
+        colors={[color, colors.violetDeep]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.primaryButtonGradient}
+      >
+        <Text style={styles.primaryButtonText}>{label}</Text>
+      </LinearGradient>
+    </Pressable>
   );
 }
 
@@ -327,24 +344,26 @@ const styles = StyleSheet.create({
 
   container: {
     flexGrow: 1,
+    width: "100%",
+    maxWidth: 480,
+    alignSelf: "center",
     paddingHorizontal: scale(24),
-    paddingTop: verticalScale(30),
-    paddingBottom: verticalScale(34),
-    overflow: "visible",
+    paddingTop: verticalScale(34),
+    paddingBottom: verticalScale(36),
   },
 
-  bgGlowMood: {
+  backgroundGlow: {
     position: "absolute",
-    top: verticalScale(120),
-    right: scale(-118),
-    width: scale(260),
-    height: scale(260),
-    borderRadius: scale(130),
-    opacity: 0.13,
+    top: verticalScale(128),
+    right: scale(-120),
+    width: scale(270),
+    height: scale(270),
+    borderRadius: scale(135),
+    opacity: 0.11,
   },
 
   header: {
-    marginBottom: verticalScale(28),
+    marginBottom: verticalScale(34),
   },
 
   kicker: {
@@ -352,271 +371,244 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: scale(11),
     fontWeight: "900",
-    letterSpacing: 1.7,
+    letterSpacing: 1.8,
     textTransform: "uppercase",
   },
 
   title: {
-    marginBottom: verticalScale(8),
+    maxWidth: scale(340),
+    marginBottom: verticalScale(10),
     color: colors.text,
-    fontSize: scale(40),
-    lineHeight: verticalScale(45),
+    fontSize: scale(39),
+    lineHeight: verticalScale(44),
     fontWeight: "900",
     letterSpacing: -1.4,
   },
 
   subtitle: {
-    maxWidth: scale(315),
+    maxWidth: scale(330),
     color: colors.textMuted,
     fontSize: scale(14),
     lineHeight: verticalScale(21),
     fontWeight: "700",
   },
 
-  summaryBlock: {
-    marginBottom: verticalScale(30),
-    padding: scale(20),
-    backgroundColor: colors.surface,
-    borderRadius: scale(32),
-    borderWidth: 1,
-    shadowOpacity: 0.16,
-    shadowRadius: 26,
-    shadowOffset: { width: 0, height: 14 },
-    elevation: 7,
+  overviewSection: {
+    marginBottom: verticalScale(34),
+    paddingBottom: verticalScale(26),
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
 
-  summaryHeader: {
+  overviewHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: verticalScale(8),
+    marginBottom: verticalScale(12),
   },
 
-  summaryLabel: {
+  sectionLabel: {
     color: colors.textMuted,
     fontSize: scale(11),
     fontWeight: "900",
-    letterSpacing: 1.3,
+    letterSpacing: 1.4,
     textTransform: "uppercase",
   },
 
-  totalText: {
+  logCount: {
     color: colors.textMuted,
-    fontSize: scale(13),
-    fontWeight: "900",
+    fontSize: scale(12),
+    fontWeight: "800",
   },
 
-  summaryTrend: {
+  trendTitle: {
     marginBottom: verticalScale(10),
-    fontSize: scale(42),
+    fontSize: scale(43),
     lineHeight: verticalScale(48),
     fontWeight: "900",
-    letterSpacing: -1.7,
+    letterSpacing: -1.8,
   },
 
-  summaryCopy: {
-    marginBottom: verticalScale(18),
+  trendCopy: {
+    marginBottom: verticalScale(24),
     color: colors.textSoft,
-    fontSize: scale(14),
-    lineHeight: verticalScale(21),
+    fontSize: scale(15),
+    lineHeight: verticalScale(23),
     fontWeight: "700",
   },
 
-  summaryMetricGrid: {
+  metricsLine: {
     flexDirection: "row",
-    gap: scale(10),
+    alignItems: "center",
+    paddingVertical: verticalScale(18),
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
   },
 
-  metricCard: {
+  metric: {
     flex: 1,
-    minHeight: verticalScale(74),
-    justifyContent: "center",
-    paddingHorizontal: scale(9),
-    paddingVertical: verticalScale(10),
-    backgroundColor: colors.surfaceSoft,
-    borderRadius: scale(22),
-    borderWidth: 1,
-    borderColor: colors.border,
+    alignItems: "center",
   },
 
   metricValue: {
     color: colors.text,
-    fontSize: scale(17),
+    fontSize: scale(18),
     fontWeight: "900",
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
     textAlign: "center",
   },
 
   metricLabel: {
-    marginTop: verticalScale(4),
+    marginTop: verticalScale(5),
     color: colors.textMuted,
     fontSize: scale(10),
     fontWeight: "900",
-    letterSpacing: 0.9,
+    letterSpacing: 1,
     textTransform: "uppercase",
     textAlign: "center",
   },
 
-  miniTrendBlock: {
-    marginTop: verticalScale(18),
-    paddingTop: verticalScale(16),
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+  metricDivider: {
+    width: 1,
+    height: verticalScale(32),
+    backgroundColor: colors.border,
   },
 
-  miniTrendLabel: {
-    marginBottom: verticalScale(12),
-    color: colors.textMuted,
-    fontSize: scale(11),
-    fontWeight: "900",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
+  signalSection: {
+    marginTop: verticalScale(24),
   },
 
-  miniTrendRow: {
-    height: verticalScale(78),
+  signalRow: {
+    height: verticalScale(82),
     flexDirection: "row",
     alignItems: "flex-end",
-    gap: scale(8),
+    gap: scale(10),
+    marginTop: verticalScale(14),
   },
 
-  miniTrendItem: {
+  signalItem: {
     flex: 1,
     alignItems: "center",
     justifyContent: "flex-end",
   },
 
-  miniTrendBar: {
+  signalBar: {
     width: "100%",
-    maxWidth: scale(18),
+    maxWidth: scale(14),
     minHeight: verticalScale(12),
     borderRadius: scale(999),
-    opacity: 0.82,
+    opacity: 0.86,
   },
 
-  miniTrendHint: {
-    marginTop: verticalScale(10),
+  signalHint: {
+    marginTop: verticalScale(12),
     color: colors.textFaint,
     fontSize: scale(11),
     fontWeight: "700",
   },
 
-  timelineBlock: {
+  historySection: {
     marginTop: verticalScale(2),
   },
 
-  sectionTitle: {
+  historyTitle: {
     marginBottom: verticalScale(18),
     color: colors.text,
-    fontSize: scale(23),
+    fontSize: scale(24),
     fontWeight: "900",
-    letterSpacing: -0.7,
+    letterSpacing: -0.8,
   },
 
-  timeline: {
-    gap: verticalScale(0),
+  historyList: {
+    gap: verticalScale(22),
   },
 
-  timelineItem: {
+  historyItem: {
     flexDirection: "row",
     gap: scale(14),
   },
 
-  timelineLeft: {
+  itemAccentWrap: {
+    width: scale(14),
     alignItems: "center",
-    width: scale(16),
+    paddingTop: verticalScale(6),
   },
 
-  timelineDot: {
-    width: scale(11),
-    height: scale(11),
-    marginTop: verticalScale(18),
-    borderRadius: scale(5.5),
-    shadowOpacity: 0.75,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 5,
+  itemAccent: {
+    width: scale(8),
+    height: "100%",
+    minHeight: verticalScale(92),
+    borderRadius: scale(999),
+    opacity: 0.9,
   },
 
-  timelineLine: {
+  itemBody: {
     flex: 1,
-    width: 1,
-    marginTop: verticalScale(7),
-    marginBottom: verticalScale(8),
-    backgroundColor: colors.borderStrong,
-    opacity: 0.65,
+    paddingBottom: verticalScale(22),
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
 
-  itemContent: {
-    flex: 1,
-    marginBottom: verticalScale(14),
-    padding: scale(16),
-    backgroundColor: colors.surfaceSoft,
-    borderRadius: scale(24),
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-
-  itemTopRow: {
+  itemHeader: {
     flexDirection: "row",
+    alignItems: "flex-start",
     justifyContent: "space-between",
-    gap: scale(12),
-    marginBottom: verticalScale(4),
+    gap: scale(14),
+    marginBottom: verticalScale(8),
   },
 
   itemMood: {
     flex: 1,
-    fontSize: scale(18),
+    fontSize: scale(22),
+    lineHeight: verticalScale(27),
     fontWeight: "900",
-    letterSpacing: -0.2,
+    letterSpacing: -0.5,
   },
 
   itemDate: {
+    marginTop: verticalScale(3),
     color: colors.textMuted,
     fontSize: scale(12),
     fontWeight: "800",
   },
 
-  itemMetaRow: {
+  itemStats: {
     flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: scale(7),
-    marginBottom: verticalScale(7),
+    gap: scale(14),
+    marginBottom: verticalScale(8),
   },
 
-  itemMeta: {
+  itemStat: {
     color: colors.textMuted,
-    fontSize: scale(12),
+    fontSize: scale(13),
     fontWeight: "800",
   },
 
-  itemMetaDot: {
-    width: scale(4),
-    height: scale(4),
-    borderRadius: scale(2),
-    backgroundColor: colors.textFaint,
-    opacity: 0.65,
+  visualText: {
+    marginBottom: verticalScale(8),
+    color: "#22D3EE",
+    fontSize: scale(12),
+    fontWeight: "900",
   },
 
-  itemNote: {
+  noteText: {
     color: colors.textSoft,
     fontSize: scale(14),
-    lineHeight: verticalScale(20),
+    lineHeight: verticalScale(21),
     fontWeight: "600",
   },
 
-  itemNoteMuted: {
+  noteMuted: {
     color: colors.textFaint,
     fontSize: scale(13),
-    lineHeight: verticalScale(19),
+    lineHeight: verticalScale(20),
     fontWeight: "700",
     fontStyle: "italic",
   },
 
-  emptyBlock: {
-    marginTop: verticalScale(12),
-    padding: scale(20),
+  stateBlock: {
+    padding: scale(22),
     backgroundColor: colors.surface,
     borderRadius: scale(30),
     borderWidth: 1,
@@ -624,17 +616,17 @@ const styles = StyleSheet.create({
     ...shadows.soft,
   },
 
-  emptyTitle: {
+  stateTitle: {
     marginBottom: verticalScale(8),
     color: colors.text,
     fontSize: scale(25),
     fontWeight: "900",
-    letterSpacing: -0.6,
+    letterSpacing: -0.7,
   },
 
-  emptyText: {
-    maxWidth: scale(300),
-    marginBottom: verticalScale(20),
+  stateText: {
+    maxWidth: scale(310),
+    marginBottom: verticalScale(22),
     color: colors.textMuted,
     fontSize: scale(14),
     lineHeight: verticalScale(21),
@@ -655,7 +647,7 @@ const styles = StyleSheet.create({
     paddingVertical: verticalScale(17),
     borderRadius: scale(26),
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
+    borderColor: "rgba(255,255,255,0.28)",
   },
 
   primaryButtonText: {
@@ -664,20 +656,20 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 
-  secondaryButton: {
+  backButton: {
     alignItems: "center",
-    marginTop: verticalScale(24),
+    marginTop: verticalScale(30),
     paddingVertical: verticalScale(16),
   },
 
-  secondaryButtonText: {
+  backButtonText: {
     color: colors.textSoft,
     fontSize: scale(15),
     fontWeight: "900",
   },
 
   buttonPressed: {
-    opacity: 0.76,
+    opacity: 0.72,
     transform: [{ scale: 0.99 }],
   },
 

@@ -15,8 +15,9 @@ type AppColorName = keyof typeof colors;
 
 export function useThemeColor(props: ThemeColorProps, colorName: AppColorName) {
   const theme = useColorScheme() ?? "light";
-  const colorFromProps = props[theme];
+  const resolvedTheme = theme === "dark" ? "dark" : "light";
 
+  const colorFromProps = props[resolvedTheme];
   if (colorFromProps) {
     return colorFromProps;
   }

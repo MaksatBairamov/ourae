@@ -48,7 +48,7 @@ export default function BackgroundGradient() {
 
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: colors.bg,
     overflow: "hidden",
   },
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   },
 
   noiseOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(255,255,255,0.012)",
   },
 });
